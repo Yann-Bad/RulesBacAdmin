@@ -1,0 +1,49 @@
+<div class="login-wrapper">
+  <div class="login-card">
+    <div class="brand">
+      <span class="brand-icon">⚙</span>
+      <h1>RulesBac Admin</h1>
+      <p>Panneau d'administration SuperAdmin</p>
+    </div>
+
+    <form (ngSubmit)="submit()" #loginForm="ngForm">
+      <div class="field">
+        <label for="userName">Identifiant</label>
+        <input
+          id="userName"
+          type="text"
+          [(ngModel)]="userName"
+          name="userName"
+          autocomplete="username"
+          placeholder="nom d'utilisateur"
+          [disabled]="loading()"
+        />
+      </div>
+
+      <div class="field">
+        <label for="password">Mot de passe</label>
+        <input
+          id="password"
+          type="password"
+          [(ngModel)]="password"
+          name="password"
+          autocomplete="current-password"
+          placeholder="••••••••"
+          [disabled]="loading()"
+        />
+      </div>
+
+      @if (error()) {
+        <p class="error-msg">{{ error() }}</p>
+      }
+
+      <button type="submit" class="btn-primary" [disabled]="loading()">
+        @if (loading()) {
+          <span class="spinner"></span> Connexion…
+        } @else {
+          Se connecter
+        }
+      </button>
+    </form>
+  </div>
+</div>

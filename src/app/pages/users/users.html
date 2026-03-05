@@ -1,0 +1,199 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h2>Utilisateurs</h2>
+      <p class="subtitle">Gérer les comptes utilisateurs RubacCore</p>
+    </div>
+    <button class="btn btn-primary" (click)="openCreate()">+ Nouvel utilisateur</button>
+  </div>
+
+  <div class="toolbar">
+    <input
+      class="search-input"
+      type="search"
+      placeholder="Rechercher par nom ou email…"
+      [value]="search()"
+      (input)="search.set($any($event.target).value)"
+    />
+    <span class="count">{{ filteredUsers().length }} utilisateur(s)</span>
+  </div>
+
+  @if (error()) {
+    <div class="alert-error">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="loading">Chargement…</div>
+  } @else {
+    <div class="table-wrapper">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Utilisateur</th>
+            <th>Email</th>
+            <th>Rôles</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (user of filteredUsers(); track user.id) {
+            <tr [class.inactive]="!user.isActive">
+              <td>
+                <div class="user-cell">
+                  <span class="avatar">{{ user.userName[0].toUpperCase() }}</span>
+                  <span>{{ user.userName }}</span>
+                </div>
+              </td>
+              <td class="email-cell">{{ user.email }}</td>
+              <td>
+                <div class="role-chips">
+                  @for (role of user.roles; track role) {
+                    <span class="chip" [class.chip-super]="role === 'SuperAdmin'">{{ role }}</span>
+                  }
+                </div>
+              </td>
+              <td>
+                <button
+                  class="status-toggle"
+                  [class.active]="user.isActive"
+                  (click)="toggleActive(user)"
+                  [title]="user.isActive ? 'Désactiver' : 'Activer'"
+                >
+                  {{ user.isActive ? 'Actif' : 'Inactif' }}
+                </button>
+              </td>
+              <td>
+                <div class="action-btns">
+                  <button class="btn btn-sm btn-ghost" (click)="openEdit(user)" title="Modifier">✏</button>
+                  <button class="btn btn-sm btn-ghost" (click)="openRoles(user)" title="Rôles">🛡</button>
+                </div>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="5" class="empty-row">Aucun utilisateur trouvé.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<!-- ── Create modal ──────────────────────────────────────────────── -->
+@if (showCreate()) {
+  <div class="modal-backdrop" (click)="showCreate.set(false)">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Nouvel utilisateur</h3>
+        <button class="modal-close" (click)="showCreate.set(false)">✕</button>
+      </div>
+      <div class="modal-body">
+        @if (createError()) {
+          <p class="alert-error">{{ createError() }}</p>
+        }
+        <div class="field">
+          <label>Identifiant</label>
+          <input type="text" [(ngModel)]="createForm.userName" placeholder="jean.dupont" />
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" [(ngModel)]="createForm.email" placeholder="jean@example.com" />
+        </div>
+        <div class="field">
+          <label>Mot de passe</label>
+          <input type="password" [(ngModel)]="createForm.password" placeholder="••••••••" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" (click)="showCreate.set(false)">Annuler</button>
+        <button class="btn btn-primary" (click)="submitCreate()" [disabled]="createLoading()">
+          {{ createLoading() ? 'Création…' : 'Créer' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Edit modal ────────────────────────────────────────────────── -->
+@if (showEdit()) {
+  <div class="modal-backdrop" (click)="showEdit.set(false)">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Modifier — {{ editTarget()?.userName }}</h3>
+        <button class="modal-close" (click)="showEdit.set(false)">✕</button>
+      </div>
+      <div class="modal-body">
+        @if (editError()) {
+          <p class="alert-error">{{ editError() }}</p>
+        }
+        <div class="field">
+          <label>Email</label>
+          <input type="email" [(ngModel)]="editForm.email" />
+        </div>
+        <div class="field">
+          <label>Prénom</label>
+          <input type="text" [(ngModel)]="editForm.firstName" placeholder="(optionnel)" />
+        </div>
+        <div class="field">
+          <label>Nom</label>
+          <input type="text" [(ngModel)]="editForm.lastName" placeholder="(optionnel)" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" (click)="showEdit.set(false)">Annuler</button>
+        <button class="btn btn-primary" (click)="submitEdit()" [disabled]="editLoading()">
+          {{ editLoading() ? 'Enregistrement…' : 'Enregistrer' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Roles modal ───────────────────────────────────────────────── -->
+@if (showRoles()) {
+  <div class="modal-backdrop" (click)="showRoles.set(false)">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Rôles — {{ roleTarget()?.userName }}</h3>
+        <button class="modal-close" (click)="showRoles.set(false)">✕</button>
+      </div>
+      <div class="modal-body">
+        @if (roleError()) {
+          <p class="alert-error">{{ roleError() }}</p>
+        }
+
+        <p class="modal-label">Rôles actuels :</p>
+        <div class="role-chips" style="margin-bottom:1.25rem">
+          @for (role of roleTarget()?.roles ?? []; track role) {
+            <span class="chip chip-removable" [class.chip-super]="role === 'SuperAdmin'">
+              {{ role }}
+              <button class="chip-remove" (click)="removeRole(role)" title="Supprimer">✕</button>
+            </span>
+          } @empty {
+            <span class="empty-text">Aucun rôle assigné.</span>
+          }
+        </div>
+
+        @if (availableRolesToAdd().length > 0) {
+          <p class="modal-label">Ajouter un rôle :</p>
+          <div class="role-add-row">
+            <select [ngModel]="roleToAdd()" (ngModelChange)="roleToAdd.set($event)">
+              <option value="">— Choisir —</option>
+              @for (r of availableRolesToAdd(); track r) {
+                <option [value]="r">{{ r }}</option>
+              }
+            </select>
+            <button class="btn btn-primary btn-sm" (click)="assignRole()" [disabled]="!roleToAdd() || roleLoading()">
+              Ajouter
+            </button>
+          </div>
+        }
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" (click)="showRoles.set(false)">Fermer</button>
+      </div>
+    </div>
+  </div>
+}

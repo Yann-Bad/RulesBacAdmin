@@ -1,0 +1,15 @@
+{
+  "/api/rubac": {
+    "target": "http://localhost:5262",
+    "pathRewrite": { "^/api/rubac": "/api" },
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "info"
+  },
+  "/connect": {
+    "target": "http://localhost:5262",
+    "secure": false,
+    "changeOrigin": true,
+    "logLevel": "info"
+  }
+}
