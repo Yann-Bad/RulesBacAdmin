@@ -70,3 +70,11 @@ export interface AssignRoleDto {
   userId:   number;
   roleName: string;
 }
+
+// ── Paginated response matching RubacCore's PagedResult<T> ────────────────
+export interface PagedResult<T> {
+  items:      T[];
+  totalCount: number;
+  page:       number;
+  pageSize:   number;
+}

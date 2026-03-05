@@ -1,16 +1,20 @@
 import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 import type { Observable } from 'rxjs';
-import type { UserDto, RegisterDto, UpdateUserDto, AssignRoleDto } from '../models/models';
+import type { UserDto, RegisterDto, UpdateUserDto, AssignRoleDto, PagedResult } from '../models/models';
 
 @Injectable({ providedIn: 'root' })
 export class UsersService {
   private readonly http = inject(HttpClient);
   private readonly base = `${environment.apiBase}/users`;
 
-  list(): Observable<UserDto[]> {  
-    return this.http.get<UserDto[]>(this.base);
+  list(page = 1, pageSize = 10, search = ''): Observable<PagedResult<UserDto>> {
+    const params = new HttpParams()
+      .set('page', page)
+      .set('pageSize', pageSize)
+      .set('search', search);
+    return this.http.get<PagedResult<UserDto>>(this.base, { params });
   }
 
   get(id: number): Observable<UserDto> {

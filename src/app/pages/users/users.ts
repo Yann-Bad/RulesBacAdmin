@@ -1,7 +1,8 @@
 import {
-  Component, OnInit, inject, signal, computed
+  Component, OnInit, OnDestroy, inject, signal, computed
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Subject, Subscription, debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
 import { UsersService } from '../../services/users.service';
 import { RolesService } from '../../services/roles.service';
 import type { UserDto, RoleDto, RegisterDto, UpdateUserDto } from '../../models/models';
@@ -13,7 +14,7 @@ import type { UserDto, RoleDto, RegisterDto, UpdateUserDto } from '../../models/
   templateUrl: './users.html',
   styleUrl: './users.css',
 })
-export class UsersComponent implements OnInit {
+export class UsersComponent implements OnInit, OnDestroy {
   private readonly usersService = inject(UsersService);
   private readonly rolesService = inject(RolesService);
 
@@ -21,7 +22,34 @@ export class UsersComponent implements OnInit {
   allRoles    = signal<RoleDto[]>([]);
   loading     = signal(true);
   error       = signal('');
-  search      = signal('');
+
+  // ── Pagination & search ─────────────────────────────────────────────────
+  page        = signal(1);
+  pageSize    = signal(10);
+  totalCount  = signal(0);
+  totalPages  = computed(() => Math.max(1, Math.ceil(this.totalCount() / this.pageSize())));
+  // Visible page buttons: always show first, last, current ±2, with null as ellipsis marker
+  pageWindow  = computed<(number | null)[]>(() => {
+    const total   = this.totalPages();
+    const current = this.page();
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const show = new Set([1, total, current - 1, current, current + 1].filter(p => p >= 1 && p <= total));
+    const sorted = Array.from(show).sort((a, b) => a - b);
+    const result: (number | null)[] = [];
+    for (let i = 0; i < sorted.length; i++) {
+      if (i > 0 && sorted[i] - sorted[i - 1] > 1) result.push(null); // ellipsis
+      result.push(sorted[i]);
+    }
+    return result;
+  });
+  from        = computed(() => this.totalCount() === 0 ? 0 : (this.page() - 1) * this.pageSize() + 1);
+  to          = computed(() => Math.min(this.page() * this.pageSize(), this.totalCount()));
+  readonly pageSizeOptions = [5, 10, 25, 50];
+
+  private readonly searchInput$ = new Subject<string>();
+  private searchSub!: Subscription;
+  // Track current search value for loadUsers() calls
+  private currentSearch = '';
 
   // Create modal
   showCreate  = signal(false);
@@ -47,24 +75,52 @@ export class UsersComponent implements OnInit {
   deleteTarget = signal<UserDto | null>(null);
   deleteLoading = signal(false);
 
-  filteredUsers = computed(() => {
-    const q = this.search().toLowerCase();
-    return q
-      ? this.users().filter(u =>
-          u.userName.toLowerCase().includes(q) ||
-          u.email.toLowerCase().includes(q))
-      : this.users();
-  });
-
   ngOnInit(): void {
-    this.loadAll();
+    // Debounce search input: wait 300 ms after the user stops typing, then
+    // reset to page 1 and reload. switchMap cancels any in-flight request.
+    this.searchSub = this.searchInput$.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+    ).subscribe(q => {
+      this.currentSearch = q;
+      this.page.set(1);
+      this.loadUsers();
+    });
+
+    this.loadUsers();
+    // Load all roles (no pagination) for the assign-role dropdown
+    this.rolesService.list(1, 200).subscribe({
+      next: result => this.allRoles.set(result.items),
+    });
   }
 
-  private loadAll(): void {
+  ngOnDestroy(): void {
+    this.searchSub?.unsubscribe();
+  }
+
+  onSearchInput(value: string): void {
+    this.searchInput$.next(value);
+  }
+
+  goToPage(p: number): void {
+    if (p < 1 || p > this.totalPages() || p === this.page()) return;
+    this.page.set(p);
+    this.loadUsers();
+  }
+
+  onPageSizeChange(size: number): void {
+    this.pageSize.set(+size);
+    this.page.set(1);
+    this.loadUsers();
+  }
+
+  private loadUsers(): void {
     this.loading.set(true);
-    this.usersService.list().subscribe({
-      next: users => {
-        this.users.set(users);
+    this.error.set('');
+    this.usersService.list(this.page(), this.pageSize(), this.currentSearch).subscribe({
+      next: result => {
+        this.users.set(result.items);
+        this.totalCount.set(result.totalCount);
         this.loading.set(false);
       },
       error: () => {
@@ -72,9 +128,6 @@ export class UsersComponent implements OnInit {
         this.loading.set(false);
       },
     });
-    // this.rolesService.list().subscribe({
-    //   next: roles => this.allRoles.set(roles),
-    // });
   }
 
   // ── Toggle active ──────────────────────────────────────────────────────
@@ -101,10 +154,10 @@ export class UsersComponent implements OnInit {
     }
     this.createLoading.set(true);
     this.usersService.create(this.createForm).subscribe({
-      next: user => {
-        this.users.update(list => [...list, user]);
+      next: () => {
         this.showCreate.set(false);
         this.createLoading.set(false);
+        this.loadUsers(); // reload the current page to show the new user
       },
       error: () => {
         this.createError.set('Erreur lors de la création.');

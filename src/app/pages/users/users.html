@@ -12,10 +12,18 @@
       class="search-input"
       type="search"
       placeholder="Rechercher par nom ou email…"
-      [value]="search()"
-      (input)="search.set($any($event.target).value)"
+      (input)="onSearchInput($any($event.target).value)"
     />
-    <span class="count">{{ filteredUsers().length }} utilisateur(s)</span>
+    <span class="count">{{ totalCount() }} utilisateur(s)</span>
+    <label class="page-size-label">
+      Afficher
+      <select [ngModel]="pageSize()" (ngModelChange)="onPageSizeChange($event)">
+        @for (n of pageSizeOptions; track n) {
+          <option [value]="n">{{ n }}</option>
+        }
+      </select>
+      par page
+    </label>
   </div>
 
   @if (error()) {
@@ -37,7 +45,7 @@
           </tr>
         </thead>
         <tbody>
-          @for (user of filteredUsers(); track user.id) {
+          @for (user of users(); track user.id) {
             <tr [class.inactive]="!user.isActive">
               <td>
                 <div class="user-cell">
@@ -78,6 +86,41 @@
         </tbody>
       </table>
     </div>
+
+    @if (totalPages() > 1) {
+      <div class="pagination">
+        <div class="pagination-info">
+          {{ from() }}–{{ to() }} sur {{ totalCount() }}
+        </div>
+        <div class="pagination-controls">
+          <button class="page-btn" (click)="goToPage(1)" [disabled]="page() === 1" title="Première page">
+            «
+          </button>
+          <button class="page-btn" (click)="goToPage(page() - 1)" [disabled]="page() === 1" title="Page précédente">
+            ‹
+          </button>
+
+          @for (p of pageWindow(); track $index) {
+            @if (p === null) {
+              <span class="page-ellipsis">…</span>
+            } @else {
+              <button
+                class="page-btn"
+                [class.active]="p === page()"
+                (click)="goToPage(p)"
+              >{{ p }}</button>
+            }
+          }
+
+          <button class="page-btn" (click)="goToPage(page() + 1)" [disabled]="page() === totalPages()" title="Page suivante">
+            ›
+          </button>
+          <button class="page-btn" (click)="goToPage(totalPages())" [disabled]="page() === totalPages()" title="Dernière page">
+            »
+          </button>
+        </div>
+      </div>
+    }
   }
 </div>
 
