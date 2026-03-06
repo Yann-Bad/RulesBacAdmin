@@ -66,6 +66,11 @@ export interface CreateRoleDto {
   application?: string;
 }
 
+export interface UpdateRoleDto {
+  description?: string;
+  application?: string;
+}
+
 export interface AssignRoleDto {
   userId:   number;
   roleName: string;
@@ -77,4 +82,129 @@ export interface PagedResult<T> {
   totalCount: number;
   page:       number;
   pageSize:   number;
+}
+
+// ── Audit log ─────────────────────────────────────────────────────────────
+export interface AuditLogDto {
+  id:        number;
+  occurredAt: string;
+  actor:      string;
+  entity:     string;
+  action:     string;
+  targetId?:  string;
+  details?:   string;
+}
+
+// ── OAuth2 / OIDC clients ─────────────────────────────────────────────────
+export interface ClientDto {
+  clientId:     string;
+  displayName?: string;
+  clientType:   string;   // 'public' | 'confidential'
+  permissions:  string[];
+  redirectUris: string[];
+}
+
+export interface CreateClientDto {
+  clientId:     string;
+  displayName?: string;
+  clientType:   string;
+  clientSecret?: string;
+  permissions:  string[];
+  redirectUris: string[];
+}
+
+export interface UpdateClientDto {
+  displayName?: string;
+  clientSecret?: string;
+  permissions:  string[];
+  redirectUris: string[];
+}
+
+// ── Centre / administrative hierarchy ────────────────────────────────────
+export type CodeSubdivisionCentre =
+  | 'CAPITAL' | 'PROVINCE' | 'VILLE' | 'TERRITOIRE' | 'DISTRICT'
+  | 'SECTEUR_CHEFFERIES' | 'GROUPEMENT' | 'COMMUNE' | 'VILLAGE';
+
+export const SUBDIVISION_LABELS: Record<CodeSubdivisionCentre, string> = {
+  CAPITAL:             'Capitale',
+  PROVINCE:            'Province',
+  VILLE:               'Ville',
+  TERRITOIRE:          'Territoire',
+  DISTRICT:            'District',
+  SECTEUR_CHEFFERIES:  'Secteur / Chefferie',
+  GROUPEMENT:          'Groupement',
+  COMMUNE:             'Commune',
+  VILLAGE:             'Village',
+};
+
+export const SUBDIVISION_OPTIONS: CodeSubdivisionCentre[] = [
+  'CAPITAL', 'PROVINCE', 'VILLE', 'TERRITOIRE', 'DISTRICT',
+  'SECTEUR_CHEFFERIES', 'GROUPEMENT', 'COMMUNE', 'VILLAGE',
+];
+
+export interface CentreDto {
+  id:                       number;
+  code?:                    string;
+  name?:                    string;
+  isActive:                 boolean;
+  subdivisionAdministrative: CodeSubdivisionCentre;
+  parentId?:                number;
+  parentName?:              string;
+}
+
+export interface CentreTreeDto {
+  id:                       number;
+  code?:                    string;
+  name?:                    string;
+  isActive:                 boolean;
+  subdivisionAdministrative: CodeSubdivisionCentre;
+  parentId?:                number;
+  children:                 CentreTreeDto[];
+}
+
+export interface CreateCentreDto {
+  code?:                    string;
+  name?:                    string;
+  isActive:                 boolean;
+  subdivisionAdministrative: CodeSubdivisionCentre;
+  parentId?:                number | null;
+}
+
+export interface UpdateCentreDto {
+  code?:                    string;
+  name?:                    string;
+  isActive:                 boolean;
+  subdivisionAdministrative: CodeSubdivisionCentre;
+  parentId?:                number | null;
+}
+
+export interface AssignUserCentreDto {
+  userId:    number;
+  centreId:  number;
+  isPrimary: boolean;
+}
+
+export interface CentreUserDto {
+  userId:    number;
+  userName:  string;
+  email?:    string;
+  isPrimary: boolean;
+}
+
+export interface UserCentreAssignmentDto {
+  centreId:                  number;
+  code?:                     string;
+  name?:                     string;
+  subdivisionAdministrative: CodeSubdivisionCentre;
+  isPrimary:                 boolean;
+}
+
+// ── Real-time presence ────────────────────────────────────────────────────
+export interface UserSession {
+  connectionId: string;
+  userId:       string;
+  userName:     string;
+  application:  string;
+  connectedAt:  string;  // ISO string
+  lastSeenAt:   string;  // ISO string
 }

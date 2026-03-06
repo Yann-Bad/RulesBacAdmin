@@ -1,0 +1,79 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h2>Tableau de bord</h2>
+      <p class="subtitle">Vue d'ensemble de l'administration RulesBac</p>
+    </div>
+    <a routerLink="/guide" fragment="dashboard" class="help-btn" title="Aide sur cette page">? Aide</a>
+  </div>
+
+  @if (error()) {
+    <div class="alert-error">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="loading">Chargement…</div>
+  } @else {
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--blue">👥</div>
+        <div class="stat-body">
+          <span class="stat-value">{{ totalUsers() }}</span>
+          <span class="stat-label">Utilisateurs total</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--green">✅</div>
+        <div class="stat-body">
+          <span class="stat-value">{{ activeUsers() }}</span>
+          <span class="stat-label">Utilisateurs actifs</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--red">🚫</div>
+        <div class="stat-body">
+          <span class="stat-value">{{ inactiveUsers() }}</span>
+          <span class="stat-label">Utilisateurs inactifs</span>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-icon stat-icon--purple">🛡</div>
+        <div class="stat-body">
+          <span class="stat-value">{{ totalRoles() }}</span>
+          <span class="stat-label">Rôles définis</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section-title">Répartition des utilisateurs</div>
+    <div class="bar-card">
+      @if (totalUsers() > 0) {
+        <div class="bar-row">
+          <span class="bar-label">Actifs</span>
+          <div class="bar-track">
+            <div
+              class="bar-fill bar-fill--green"
+              [style.width.%]="(activeUsers() / totalUsers()) * 100"
+            ></div>
+          </div>
+          <span class="bar-pct">{{ ((activeUsers() / totalUsers()) * 100) | number:'1.0-0' }}%</span>
+        </div>
+        <div class="bar-row">
+          <span class="bar-label">Inactifs</span>
+          <div class="bar-track">
+            <div
+              class="bar-fill bar-fill--red"
+              [style.width.%]="(inactiveUsers() / totalUsers()) * 100"
+            ></div>
+          </div>
+          <span class="bar-pct">{{ ((inactiveUsers() / totalUsers()) * 100) | number:'1.0-0' }}%</span>
+        </div>
+      } @else {
+        <p class="empty-text">Aucun utilisateur enregistré.</p>
+      }
+    </div>
+  }
+</div>

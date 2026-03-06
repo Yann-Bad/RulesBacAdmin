@@ -100,12 +100,20 @@ export class AuthService {
     } else {
       localStorage.removeItem(REFRESH_TOKEN_KEY);
     }
-    if (response.id_token)
+    if (response.id_token) {
       localStorage.setItem(ID_TOKEN_KEY, response.id_token);
+    } else {
+      // No new id_token — remove the old one so loadUserFromStorage won't
+      // decode a stale id_token from a previous session on next refresh.
+      localStorage.removeItem(ID_TOKEN_KEY);
+    }
 
-    // Decode user info from id_token (plain JWS), not access_token (encrypted JWE)
+    // Decode user info from id_token when available (plain JWS guaranteed),
+    // falling back to access_token. If the id_token decoded correctly but has
+    // no roles (e.g. scope not granted), also try the access_token for roles.
     const tokenToDecode = response.id_token ?? response.access_token;
-    this.currentUser.set(this.decodeToken(tokenToDecode));
+    const user = this.mergeRoles(this.decodeToken(tokenToDecode), response.access_token);
+    this.currentUser.set(user);
   }
 
   private decodeToken(jwt: string): AuthUser | null {
@@ -144,7 +152,7 @@ export class AuthService {
     }
 
     const idToken = localStorage.getItem(ID_TOKEN_KEY);
-    const user    = this.decodeToken(idToken ?? accessToken);
+    const user    = this.mergeRoles(this.decodeToken(idToken ?? accessToken), accessToken);
 
     // Use id_token for expiry check (it's a plain JWS, unlike the encrypted access token)
     if (user && idToken && this.isTokenExpired(idToken)) {
@@ -160,6 +168,18 @@ export class AuthService {
       return null;
     }
     return user;
+  }
+
+  /**
+   * If a user was decoded from the id_token but has no roles (the id_token
+   * was issued without the roles scope), try to extract roles from the
+   * access_token which always carries role claims.
+   */
+  private mergeRoles(user: AuthUser | null, accessToken: string): AuthUser | null {
+    if (!user || user.roles.length > 0) return user;
+    const fromAccess = this.decodeToken(accessToken);
+    if (!fromAccess || fromAccess.roles.length === 0) return user;
+    return { ...user, roles: fromAccess.roles, isSuperAdmin: fromAccess.isSuperAdmin };
   }
 
   private hasRequiredAudience(accessToken: string): boolean {

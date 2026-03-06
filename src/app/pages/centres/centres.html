@@ -1,0 +1,264 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h2>Centres</h2>
+      <p class="subtitle">Gérer les centres et subdivisions administratives</p>
+    </div>
+    <button class="btn btn-primary" (click)="openCreate()">+ Nouveau centre</button>
+  </div>
+
+  <div class="toolbar">
+    <input
+      class="search-input"
+      type="search"
+      placeholder="Rechercher par nom, code ou subdivision…"
+      [ngModel]="search()"
+      (ngModelChange)="onSearch($event)"
+    />
+    <span class="count">{{ filtered().length }} centre(s)</span>
+  </div>
+
+  @if (error()) {
+    <div class="alert-error">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="loading">Chargement…</div>
+  } @else if (filtered().length === 0) {
+    <div class="empty">Aucun centre trouvé.</div>
+  } @else {
+    <div class="table-wrap">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Code</th>
+            <th>Nom</th>
+            <th>Subdivision</th>
+            <th>Parent</th>
+            <th>Statut</th>
+            <th class="actions-col">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (c of filtered(); track c.id) {
+            <tr>
+              <td><code class="code-chip">{{ c.code ?? '—' }}</code></td>
+              <td>{{ c.name ?? '—' }}</td>
+              <td>
+                <span class="subdivision-badge" [attr.data-level]="c.subdivisionAdministrative">
+                  {{ subdivisionLabel(c.subdivisionAdministrative) }}
+                </span>
+              </td>
+              <td class="parent-cell">{{ c.parentName ?? '—' }}</td>
+              <td>
+                @if (c.isActive) {
+                  <span class="badge badge-active">Actif</span>
+                } @else {
+                  <span class="badge badge-inactive">Inactif</span>
+                }
+              </td>
+              <td class="actions-cell">
+                <button class="btn-icon" title="Affecter un utilisateur" (click)="openAssign(c.id)">👤</button>
+                <button class="btn-icon" title="Modifier" (click)="openEdit(c)">✏️</button>
+                <button class="btn-icon btn-icon-danger" title="Supprimer" (click)="confirmDelete(c.id)">🗑</button>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<!-- ── Create / Edit Modal ──────────────────────────────── -->
+@if (showModal()) {
+  <div class="modal-backdrop" (click)="closeModal()"></div>
+  <div class="modal" role="dialog" [attr.aria-label]="modalTitle">
+    <div class="modal-header">
+      <h3>{{ modalTitle }}</h3>
+      <button class="modal-close" (click)="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <label class="field-label">
+        Code
+        <input class="field-input" type="text" [(ngModel)]="form.code" placeholder="ex. CDK-KIN-01" />
+      </label>
+      <label class="field-label">
+        Nom <span class="required">*</span>
+        <input class="field-input" type="text" [(ngModel)]="form.name" placeholder="Nom du centre" />
+      </label>
+      <label class="field-label">
+        Subdivision administrative <span class="required">*</span>
+        <select class="field-input" [(ngModel)]="form.subdivisionAdministrative">
+          @for (opt of subdivisionOptions; track opt) {
+            <option [value]="opt">{{ subdivisionLabels[opt] }}</option>
+          }
+        </select>
+      </label>
+      <label class="field-label">
+        Centre parent
+        <select class="field-input" [(ngModel)]="form.parentId">
+          <option [ngValue]="null">— Aucun —</option>
+          @for (p of parentOptions(editingId()); track p.id) {
+            <option [ngValue]="p.id">{{ p.name ?? p.code ?? p.id }} ({{ subdivisionLabels[p.subdivisionAdministrative] }})</option>
+          }
+        </select>
+      </label>
+      <label class="field-label checkbox-label">
+        <input type="checkbox" [(ngModel)]="form.isActive" />
+        Actif
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" (click)="closeModal()">Annuler</button>
+      <button class="btn btn-primary" (click)="save()">Enregistrer</button>
+    </div>
+  </div>
+}
+
+<!-- ── Assign User Modal ─────────────────────────────────── -->
+@if (showAssignModal()) {
+  <div class="modal-backdrop" (click)="closeAssignModal()"></div>
+  <div class="modal modal-lg" role="dialog" aria-label="Gérer les utilisateurs du centre">
+    <div class="modal-header">
+      <h3>Utilisateurs — <em>{{ assignCentreName }}</em></h3>
+      <button class="modal-close" (click)="closeAssignModal()">✕</button>
+    </div>
+    <div class="modal-body">
+
+      <!-- ── Current assignments ── -->
+      <div class="assign-section-header">
+        <span class="assign-section-title">
+          Affectés
+          @if (!centreUsersLoading()) {
+            <span class="assign-count">({{ centreUsersPage()?.totalCount ?? 0 }} au total)</span>
+          }
+        </span>
+        <input
+          class="search-input search-input-sm"
+          type="search"
+          placeholder="Filtrer par nom ou e-mail…"
+          [ngModel]="centreUserSearchQuery()"
+          (ngModelChange)="onCentreUserSearchChange($event)"
+        />
+      </div>
+
+      @if (centreUsersLoading()) {
+        <div class="loading" style="font-size:.85rem;padding:.5rem 0">Chargement…</div>
+      } @else if ((centreUsersPage()?.totalCount ?? 0) === 0 && centreUserSearchQuery() === '') {
+        <div class="empty" style="font-size:.85rem;padding:.4rem 0">Aucun utilisateur affecté.</div>
+      } @else if ((centreUsersPage()?.items?.length ?? 0) === 0) {
+        <div class="empty" style="font-size:.85rem;padding:.4rem 0">Aucun résultat pour ce filtre.</div>
+      } @else {
+        <table class="data-table assign-users-table">
+          <thead>
+            <tr>
+              <th>Utilisateur</th>
+              <th>E-mail</th>
+              <th>Principal</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (u of centreUsersPage()!.items; track u.userId) {
+              <tr>
+                <td>{{ u.userName }}</td>
+                <td class="user-email-col">{{ u.email ?? '—' }}</td>
+                <td>
+                  @if (u.isPrimary) {
+                    <span class="badge badge-active">Oui</span>
+                  } @else {
+                    <span class="badge badge-inactive">Non</span>
+                  }
+                </td>
+                <td>
+                  <button class="btn-icon btn-icon-danger" title="Retirer du centre"
+                          (click)="removeFromCentre(u.userId, assignCentreId()!)">🗑</button>
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+
+        <!-- Pagination -->
+        @if (centreUserTotalPages() > 1) {
+          <div class="assign-pagination">
+            <button class="btn-page" [disabled]="centreUserCurrentPage() === 1"
+                    (click)="setCentreUserPage(centreUserCurrentPage() - 1)">‹</button>
+            <span>{{ centreUserCurrentPage() }} / {{ centreUserTotalPages() }}</span>
+            <button class="btn-page" [disabled]="centreUserCurrentPage() === centreUserTotalPages()"
+                    (click)="setCentreUserPage(centreUserCurrentPage() + 1)">›</button>
+          </div>
+        }
+      }
+
+      <hr class="assign-divider" />
+
+      <!-- ── Add new user ── -->
+      <p class="assign-section-title" style="margin-bottom:.6rem">Ajouter un utilisateur</p>
+
+      <label class="field-label">
+        Rechercher <span class="required">*</span>
+        <div class="user-search-wrap">
+          <input
+            class="field-input"
+            type="text"
+            placeholder="Tapez un nom d'utilisateur ou e-mail (≥ 2 caractères)…"
+            [ngModel]="userSearchQuery()"
+            (ngModelChange)="onUserSearchChange($event)"
+            autocomplete="off"
+          />
+          @if (assignUserId() !== null) {
+            <button class="user-search-clear" title="Effacer la sélection" (click)="clearSelectedUser()">✕</button>
+          }
+        </div>
+
+        @if (userSearchLoading()) {
+          <span class="user-search-hint">Recherche…</span>
+        } @else if (userSearchResults().length > 0 && assignUserId() === null) {
+          <ul class="user-search-results">
+            @for (u of userSearchResults(); track u.id) {
+              <li (click)="selectUser(u)">
+                <strong>{{ u.userName }}</strong>
+                @if (u.email) { <span class="user-email"> {{ u.email }}</span> }
+              </li>
+            }
+          </ul>
+        } @else if (userSearchQuery().length >= 2 && userSearchResults().length === 0 && !userSearchLoading()) {
+          <span class="user-search-hint">Aucun utilisateur trouvé.</span>
+        }
+
+        @if (assignUserId() !== null) {
+          <span class="user-selected-badge">✓ {{ assignUserName() }} sélectionné</span>
+        }
+      </label>
+
+      <label class="field-label checkbox-label">
+        <input type="checkbox" [(ngModel)]="assignIsPrimary" />
+        Centre principal (sera inclus dans le JWT comme <code>centre_primary</code>)
+      </label>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" (click)="closeAssignModal()">Fermer</button>
+      <button class="btn btn-primary" [disabled]="assignUserId() === null" (click)="saveAssign()">Affecter</button>
+    </div>
+  </div>
+}
+
+<!-- ── Delete Confirm ────────────────────────────────────── -->
+@if (deletingId() !== null) {
+  <div class="modal-backdrop" (click)="cancelDelete()"></div>
+  <div class="modal modal-sm" role="dialog" aria-label="Confirmer la suppression">
+    <div class="modal-header">
+      <h3>Supprimer le centre ?</h3>
+      <button class="modal-close" (click)="cancelDelete()">✕</button>
+    </div>
+    <div class="modal-body">
+      <p>Cette action est irréversible. Les utilisateurs affectés à ce centre perdront cette affectation.</p>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-ghost" (click)="cancelDelete()">Annuler</button>
+      <button class="btn btn-danger" (click)="deleteConfirmed()">Supprimer</button>
+    </div>
+  </div>
+}

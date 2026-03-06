@@ -6,8 +6,13 @@
     </div>
 
     <nav class="nav">
+      <a routerLink="/dashboard" routerLinkActive="active">Tableau de bord</a>
       <a routerLink="/users" routerLinkActive="active">Utilisateurs</a>
       <a routerLink="/roles" routerLinkActive="active">Rôles</a>
+      <a routerLink="/audit" routerLinkActive="active">Journal d'audit</a>
+      <a routerLink="/clients" routerLinkActive="active">Clients OAuth2</a>
+      <a routerLink="/presence" routerLinkActive="active">Présence</a>
+      <a routerLink="/centres" routerLinkActive="active">Centres</a>
     </nav>
 
     <div class="user-area">
@@ -27,6 +32,12 @@
             </div>
           </div>
           <hr class="dropdown-divider" />
+          <a class="dropdown-item" routerLink="/profile" (click)="closeMenu()">
+            <span>👤</span> Mon profil
+          </a>
+          <a class="dropdown-item" routerLink="/guide" (click)="closeMenu()">
+            <span>📖</span> Guide d'utilisation
+          </a>
           <button class="dropdown-item logout" (click)="logout()">
             <span>⎋</span> Déconnexion
           </button>
@@ -39,3 +50,5 @@
 <main class="main">
   <router-outlet />
 </main>
+
+<app-toast />

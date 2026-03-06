@@ -1,16 +1,15 @@
-import { Component } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Component, inject } from '@angular/core';
+import { AuthService } from '../../services/auth.service';
 
 @Component({
   selector: 'app-forbidden',
   standalone: true,
-  imports: [RouterLink],
   template: `
     <div class="forbidden">
       <div class="code">403</div>
       <h2>Accès refusé</h2>
-      <p>Vous n'avez pas les droits SuperAdmin nécessaires pour accéder à cette page.</p>
-      <a routerLink="/login" class="btn">Retour à la connexion</a>
+      <p>Votre session ne dispose pas des droits SuperAdmin requis.</p>
+      <button class="btn" (click)="logout()">Se déconnecter</button>
     </div>
   `,
   styles: [`
@@ -39,12 +38,17 @@ import { RouterLink } from '@angular/router';
       padding: 0.75rem 2rem;
       background: #6366f1;
       color: #fff;
+      border: none;
       border-radius: 8px;
-      text-decoration: none;
+      cursor: pointer;
+      font-size: 1rem;
       font-weight: 600;
       transition: background 0.2s;
     }
     .btn:hover { background: #4f46e5; }
   `],
 })
-export class ForbiddenComponent {}
+export class ForbiddenComponent {
+  private readonly auth = inject(AuthService);
+  logout(): void { this.auth.logout(); }
+}

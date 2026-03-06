@@ -1,0 +1,97 @@
+<div class="audit-page">
+  <div class="page-header">
+    <h1>Journal d'audit</h1>
+    <div class="header-actions">
+      <a routerLink="/guide" fragment="audit" class="help-btn" title="Aide sur cette page">? Aide</a>
+      <span class="total-count">{{ totalCount() }} entrée(s)</span>
+    </div>
+  </div>
+
+  <!-- Toolbar -->
+  <div class="toolbar">
+    <input
+      class="search-input"
+      type="text"
+      placeholder="Rechercher (acteur, cible…)"
+      [(ngModel)]="searchTerm"
+      (ngModelChange)="onSearch()"
+    />
+
+    <select class="filter-select" [(ngModel)]="entityFilter" (ngModelChange)="onFilterChange()">
+      <option value="">Toutes les entités</option>
+      <option value="User">Utilisateur</option>
+      <option value="Role">Rôle</option>
+    </select>
+
+    <select class="filter-select" [(ngModel)]="actionFilter" (ngModelChange)="onFilterChange()">
+      <option value="">Toutes les actions</option>
+      <option value="user.created">user.created</option>
+      <option value="user.updated">user.updated</option>
+      <option value="user.deleted">user.deleted</option>
+      <option value="user.activated">user.activated</option>
+      <option value="user.deactivated">user.deactivated</option>
+      <option value="password.reset">password.reset</option>
+      <option value="password.changed">password.changed</option>
+      <option value="role.assigned">role.assigned</option>
+      <option value="role.removed">role.removed</option>
+      <option value="role.created">role.created</option>
+      <option value="role.deleted">role.deleted</option>
+      <option value="role.updated">role.updated</option>
+    </select>
+  </div>
+
+  <!-- Error -->
+  @if (error()) {
+    <div class="error-bar">{{ error() }}</div>
+  }
+
+  <!-- Table -->
+  <div class="table-wrapper">
+    <table class="audit-table">
+      <thead>
+        <tr>
+          <th>Date / Heure</th>
+          <th>Acteur</th>
+          <th>Entité</th>
+          <th>Action</th>
+          <th>Cible</th>
+          <th>Détails</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr><td colspan="6" class="loading-cell">Chargement…</td></tr>
+        } @else if (logs().length === 0) {
+          <tr><td colspan="6" class="empty-cell">Aucune entrée trouvée.</td></tr>
+        } @else {
+          @for (log of logs(); track log.id) {
+            <tr>
+              <td class="date-cell">{{ formatDate(log.occurredAt) }}</td>
+              <td class="actor-cell">{{ log.actor }}</td>
+              <td>{{ log.entity }}</td>
+              <td><span [class]="actionBadgeClass(log.action)">{{ log.action }}</span></td>
+              <td class="target-cell">{{ log.targetId ?? '—' }}</td>
+              <td class="details-cell" [title]="log.details ?? ''">{{ log.details ?? '' }}</td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  @if (totalPages > 1) {
+    <div class="pagination">
+      <button class="page-btn" [disabled]="page() === 1" (click)="goToPage(page() - 1)">‹</button>
+      @for (p of pages; track p) {
+        <button
+          class="page-btn"
+          [class.active]="p === page()"
+          (click)="goToPage(p)"
+        >{{ p }}</button>
+      }
+      <button class="page-btn" [disabled]="page() === totalPages" (click)="goToPage(page() + 1)">›</button>
+      <span class="page-info">Page {{ page() }} / {{ totalPages }}</span>
+    </div>
+  }
+</div>

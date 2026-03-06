@@ -1,0 +1,107 @@
+<div class="presence-page">
+
+  <!-- Header -->
+  <div class="page-header">
+    <div>
+      <h1>Présence en temps réel</h1>
+      <p class="subtitle">Utilisateurs connectés via SignalR — mise à jour instantanée</p>
+    </div>
+    <div class="conn-status" [class.online]="connected()" [class.connecting]="connecting()">
+      <span class="conn-dot"></span>
+      {{ connecting() ? 'Connexion…' : connected() ? 'Hub connecté' : 'Déconnecté' }}
+    </div>
+  </div>
+
+  <!-- Stats bar -->
+  <div class="stats-bar">
+    <div class="stat-card stat-total">
+      <span class="stat-value">{{ total() }}</span>
+      <span class="stat-label">Connecté(s)</span>
+    </div>
+    @for (entry of byApp(); track entry.app) {
+      <div class="stat-card" (click)="setFilter(entry.app)"
+           [class.active]="filterApp() === entry.app">
+        <span class="stat-value">{{ entry.count }}</span>
+        <span class="stat-label">
+          <span [class]="appBadgeClass(entry.app)">{{ entry.app }}</span>
+        </span>
+      </div>
+    }
+    @if (byApp().length === 0 && !connecting()) {
+      <div class="stat-card">
+        <span class="stat-value muted">—</span>
+        <span class="stat-label muted">Aucune application</span>
+      </div>
+    }
+  </div>
+
+  <!-- Filter notice -->
+  @if (filterApp()) {
+    <div class="filter-bar">
+      Filtre actif : <strong>{{ filterApp() }}</strong>
+      <button class="clear-filter" (click)="filterApp.set('')">✕ Effacer</button>
+    </div>
+  }
+
+  <!-- Sessions table -->
+  <div class="table-wrapper">
+    <table class="presence-table">
+      <thead>
+        <tr>
+          <th>Statut</th>
+          <th>Utilisateur</th>
+          <th>Application</th>
+          <th>Connecté à</th>
+          <th>Inactif depuis</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (connecting()) {
+          <tr><td colspan="5" class="loading-cell">Connexion au hub…</td></tr>
+        } @else if (!connected()) {
+          <tr><td colspan="5" class="empty-cell warn">Hub déconnecté. Rechargez la page.</td></tr>
+        } @else if (filtered().length === 0) {
+          <tr><td colspan="5" class="empty-cell">Aucun utilisateur connecté.</td></tr>
+        } @else {
+          @for (s of paginated(); track s.connectionId) {
+            <tr [class]="statusClass(s)">
+              <td class="status-cell">
+                <span class="dot" [class]="statusClass(s)"></span>
+                <span class="status-text">{{ statusLabel(s) }}</span>
+              </td>
+              <td class="user-cell">
+                <span class="user-name">{{ s.userName }}</span>
+                <span class="user-id">{{ s.userId }}</span>
+              </td>
+              <td>
+                <span [class]="appBadgeClass(s.application)">{{ s.application }}</span>
+              </td>
+              <td class="mono">{{ connectedAt(s) }}</td>
+              <td class="idle-cell">
+                <span class="idle" [class]="statusClass(s)">{{ idleLabel(s) }}</span>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Pagination -->
+  @if (filtered().length > 0) {
+    <div class="pagination">
+      @if (totalPages() > 1) {
+        <button class="page-btn" (click)="prevPage()" [disabled]="page() === 1">&#8249;</button>
+        @for (n of pageRange; track n) {
+          <button class="page-btn" [class.active]="page() === n" (click)="page.set(n)">{{ n }}</button>
+        }
+        <button class="page-btn" (click)="nextPage()" [disabled]="page() === totalPages()">&#8250;</button>
+      }
+      <span class="page-info">
+        @if (totalPages() > 1) { Page {{ page() }} / {{ totalPages() }} &nbsp;·&nbsp; }
+        {{ filtered().length }} utilisateur(s) connecté(s)
+      </span>
+    </div>
+  }
+
+</div>

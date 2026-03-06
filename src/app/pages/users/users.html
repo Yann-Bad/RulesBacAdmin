@@ -4,7 +4,10 @@
       <h2>Utilisateurs</h2>
       <p class="subtitle">Gérer les comptes utilisateurs RubacCore</p>
     </div>
-    <button class="btn btn-primary" (click)="openCreate()">+ Nouvel utilisateur</button>
+    <div class="header-actions">
+      <a routerLink="/guide" fragment="users" class="help-btn" title="Aide sur cette page">? Aide</a>
+      <button class="btn btn-primary" (click)="openCreate()">+ Nouvel utilisateur</button>
+    </div>
   </div>
 
   <div class="toolbar">
@@ -37,8 +40,14 @@
       <table class="data-table">
         <thead>
           <tr>
-            <th>Utilisateur</th>
-            <th>Email</th>
+            <th class="sortable" (click)="sort('userName')">
+              Utilisateur
+              <span class="sort-icon">{{ sortBy() === 'userName' ? (sortDir() === 'asc' ? '▲' : '▼') : '⇅' }}</span>
+            </th>
+            <th class="sortable" (click)="sort('email')">
+              Email
+              <span class="sort-icon">{{ sortBy() === 'email' ? (sortDir() === 'asc' ? '▲' : '▼') : '⇅' }}</span>
+            </th>
             <th>Rôles</th>
             <th>Statut</th>
             <th>Actions</th>
@@ -50,7 +59,7 @@
               <td>
                 <div class="user-cell">
                   <span class="avatar">{{ user.userName[0].toUpperCase() }}</span>
-                  <span>{{ user.userName }}</span>
+                  <a class="user-link" [routerLink]="['/users', user.id]">{{ user.userName }}</a>
                 </div>
               </td>
               <td class="email-cell">{{ user.email }}</td>
@@ -73,8 +82,12 @@
               </td>
               <td>
                 <div class="action-btns">
+                  <button class="btn btn-sm btn-ghost" [routerLink]="['/users', user.id]" title="Voir le détail">👁</button>
                   <button class="btn btn-sm btn-ghost" (click)="openEdit(user)" title="Modifier">✏</button>
                   <button class="btn btn-sm btn-ghost" (click)="openRoles(user)" title="Rôles">🛡</button>
+                  <button class="btn btn-sm btn-ghost" (click)="openCentres(user)" title="Centres">🏢</button>
+                  <button class="btn btn-sm btn-ghost" (click)="openResetPwd(user)" title="Réinitialiser le mot de passe">🔑</button>
+                  <button class="btn btn-sm btn-danger" (click)="openDelete(user)" title="Supprimer définitivement">🗑</button>
                 </div>
               </td>
             </tr>
@@ -168,9 +181,6 @@
         <button class="modal-close" (click)="showEdit.set(false)">✕</button>
       </div>
       <div class="modal-body">
-        @if (editError()) {
-          <p class="alert-error">{{ editError() }}</p>
-        }
         <div class="field">
           <label>Email</label>
           <input type="email" [(ngModel)]="editForm.email" />
@@ -195,6 +205,62 @@
 }
 
 <!-- ── Roles modal ───────────────────────────────────────────────── -->
+<!-- ── Reset password modal ─────────────────────────────────────── -->
+@if (showResetPwd()) {
+  <div class="modal-backdrop" (click)="showResetPwd.set(false)">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Réinitialiser le mot de passe — {{ resetPwdTarget()?.userName }}</h3>
+        <button class="modal-close" (click)="showResetPwd.set(false)">✕</button>
+      </div>
+      <div class="modal-body">
+        @if (resetPwdError()) {
+          <p class="alert-error">{{ resetPwdError() }}</p>
+        }
+        <div class="field">
+          <label>Nouveau mot de passe</label>
+          <input type="password" [(ngModel)]="resetPwdForm.newPassword" placeholder="••••••••" />
+        </div>
+        <div class="field">
+          <label>Confirmer le mot de passe</label>
+          <input type="password" [(ngModel)]="resetPwdForm.confirm" placeholder="••••••••" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" (click)="showResetPwd.set(false)">Annuler</button>
+        <button class="btn btn-primary" (click)="submitResetPwd()" [disabled]="resetPwdLoading()">
+          {{ resetPwdLoading() ? 'Réinitialisation…' : 'Réinitialiser' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Delete confirmation modal ─────────────────────────────── -->
+@if (deleteTarget()) {
+  <div class="modal-backdrop" (click)="deleteTarget.set(null)">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Supprimer l'utilisateur</h3>
+        <button class="modal-close" (click)="deleteTarget.set(null)">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="delete-warning">
+          Vous êtes sur le point de supprimer définitivement le compte
+          <strong>{{ deleteTarget()!.userName }}</strong>.
+          Cette action est <strong>irréversible</strong>.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" (click)="deleteTarget.set(null)">Annuler</button>
+        <button class="btn btn-danger" (click)="confirmDelete()" [disabled]="deleteLoading()">
+          {{ deleteLoading() ? 'Suppression…' : 'Supprimer définitivement' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
 @if (showRoles()) {
   <div class="modal-backdrop" (click)="showRoles.set(false)">
     <div class="modal" (click)="$event.stopPropagation()">
@@ -203,10 +269,6 @@
         <button class="modal-close" (click)="showRoles.set(false)">✕</button>
       </div>
       <div class="modal-body">
-        @if (roleError()) {
-          <p class="alert-error">{{ roleError() }}</p>
-        }
-
         <p class="modal-label">Rôles actuels :</p>
         <div class="role-chips" style="margin-bottom:1.25rem">
           @for (role of roleTarget()?.roles ?? []; track role) {
@@ -236,6 +298,64 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-primary" (click)="showRoles.set(false)">Fermer</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Centres modal ─────────────────────────────────────────────── -->
+@if (showCentreModal()) {
+  <div class="modal-backdrop" (click)="showCentreModal.set(false)">
+    <div class="modal modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Centres — {{ centreTarget()?.userName }}</h3>
+        <button class="modal-close" (click)="showCentreModal.set(false)">✕</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- Current assignments -->
+        <p class="modal-label">Centres affectés</p>
+        @if (userCentresLoading()) {
+          <div class="loading" style="font-size:.85rem;padding:.4rem 0">Chargement…</div>
+        } @else if (userCentres().length === 0) {
+          <p class="empty-text">Aucun centre affecté.</p>
+        } @else {
+          <div class="centre-chips" style="margin-bottom:1.25rem">
+            @for (c of userCentres(); track c.centreId) {
+              <span class="centre-chip" [class.centre-chip-primary]="c.isPrimary">
+                <span class="centre-chip-name">{{ c.name ?? c.code ?? c.centreId }}</span>
+                <span class="centre-chip-sub">{{ subdivisionLabels[c.subdivisionAdministrative] }}</span>
+                @if (c.isPrimary) { <span class="centre-chip-badge">Principal</span> }
+                <button class="chip-remove" (click)="removeCentreFromUser(c.centreId)" title="Retirer">✕</button>
+              </span>
+            }
+          </div>
+        }
+
+        <!-- Add centre -->
+        @if (availableCentresToAdd().length > 0) {
+          <p class="modal-label">Ajouter un centre</p>
+          <div class="role-add-row">
+            <select [ngModel]="addCentreId()" (ngModelChange)="addCentreId.set(+$event || null)">
+              <option [ngValue]="null">— Choisir —</option>
+              @for (c of availableCentresToAdd(); track c.id) {
+                <option [value]="c.id">
+                  {{ c.name ?? c.code ?? c.id }} ({{ subdivisionLabels[c.subdivisionAdministrative] }})
+                </option>
+              }
+            </select>
+            <label class="checkbox-inline">
+              <input type="checkbox" [ngModel]="addCentreIsPrimary()" (ngModelChange)="addCentreIsPrimary.set($event)" />
+              Principal
+            </label>
+            <button class="btn btn-primary btn-sm" [disabled]="addCentreId() === null" (click)="assignCentreToUser()">
+              Ajouter
+            </button>
+          </div>
+        }
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" (click)="showCentreModal.set(false)">Fermer</button>
       </div>
     </div>
   </div>

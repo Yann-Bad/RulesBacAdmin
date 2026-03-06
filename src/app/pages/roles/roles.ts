@@ -1,18 +1,21 @@
 import { Component, OnInit, OnDestroy, inject, signal, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { Subject, Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
 import { RolesService } from '../../services/roles.service';
-import type { RoleDto, CreateRoleDto } from '../../models/models';
+import { ToastService } from '../../services/toast.service';
+import type { RoleDto, CreateRoleDto, UpdateRoleDto } from '../../models/models';
 
 @Component({
   selector: 'app-roles',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   templateUrl: './roles.html',
   styleUrl: './roles.css',
 })
 export class RolesComponent implements OnInit, OnDestroy {
   private readonly rolesService = inject(RolesService);
+  private readonly toast        = inject(ToastService);
 
   roles         = signal<RoleDto[]>([]);
   loading       = signal(true);
@@ -44,6 +47,28 @@ export class RolesComponent implements OnInit, OnDestroy {
   private searchSub!: Subscription;
   private currentSearch = '';
 
+  // ── Sorting ───────────────────────────────────────────────────────────────
+  sortBy  = signal('name');
+  sortDir = signal<'asc' | 'desc'>('asc');
+  readonly sortOptions = [
+    { label: 'Nom (A–Z)',           value: 'name:asc' },
+    { label: 'Nom (Z–A)',           value: 'name:desc' },
+    { label: 'Application (A–Z)',   value: 'application:asc' },
+    { label: 'Application (Z–A)',   value: 'application:desc' },
+  ];
+
+  onSortChange(value: string): void {
+    const [col, dir] = value.split(':');
+    this.sortBy.set(col);
+    this.sortDir.set(dir as 'asc' | 'desc');
+    this.page.set(1);
+    this.load();
+  }
+
+  get currentSortValue(): string {
+    return `${this.sortBy()}:${this.sortDir()}`;
+  }
+
   showCreate    = signal(false);
   createForm: CreateRoleDto = { name: '' };
   createError   = signal('');
@@ -51,6 +76,12 @@ export class RolesComponent implements OnInit, OnDestroy {
 
   deleteTarget  = signal<RoleDto | null>(null);
   deleteLoading = signal(false);
+
+  // Edit modal
+  showEdit    = signal(false);
+  editTarget  = signal<RoleDto | null>(null);
+  editForm: UpdateRoleDto = {};
+  editLoading = signal(false);
 
   ngOnInit(): void {
     this.searchSub = this.searchInput$.pipe(
@@ -87,7 +118,7 @@ export class RolesComponent implements OnInit, OnDestroy {
   private load(): void {
     this.loading.set(true);
     this.error.set('');
-    this.rolesService.list(this.page(), this.pageSize(), this.currentSearch).subscribe({
+    this.rolesService.list(this.page(), this.pageSize(), this.currentSearch, this.sortBy(), this.sortDir()).subscribe({
       next: result => {
         this.roles.set(result.items);
         this.totalCount.set(result.totalCount);
@@ -116,10 +147,12 @@ export class RolesComponent implements OnInit, OnDestroy {
       next: () => {
         this.showCreate.set(false);
         this.createLoading.set(false);
+        this.toast.success(`Rôle '${this.createForm.name}' créé avec succès.`);
         this.load();
       },
-      error: () => {
-        this.createError.set('Erreur lors de la création du rôle.');
+      error: (err) => {
+        const msg = err?.error?.error ?? 'Erreur lors de la création du rôle.';
+        this.createError.set(msg);
         this.createLoading.set(false);
       },
     });
@@ -133,9 +166,38 @@ export class RolesComponent implements OnInit, OnDestroy {
       next: () => {
         this.deleteTarget.set(null);
         this.deleteLoading.set(false);
+        this.toast.success(`Rôle '${role.name}' supprimé.`);
         this.load();
       },
-      error: () => this.deleteLoading.set(false),
+      error: () => {
+        this.toast.error('Erreur lors de la suppression du rôle.');
+        this.deleteLoading.set(false);
+      },
+    });
+  }
+
+  // ── Edit ───────────────────────────────────────────────────────────
+  openEdit(role: RoleDto): void {
+    this.editTarget.set(role);
+    this.editForm = { description: role.description, application: role.application };
+    this.showEdit.set(true);
+  }
+
+  submitEdit(): void {
+    const target = this.editTarget();
+    if (!target) return;
+    this.editLoading.set(true);
+    this.rolesService.update(target.name, this.editForm).subscribe({
+      next: updated => {
+        this.roles.update(list => list.map(r => r.name === updated.name ? updated : r));
+        this.showEdit.set(false);
+        this.editLoading.set(false);
+        this.toast.success(`Rôle '${updated.name}' mis à jour.`);
+      },
+      error: () => {
+        this.toast.error('Erreur lors de la mise à jour du rôle.');
+        this.editLoading.set(false);
+      },
     });
   }
 }

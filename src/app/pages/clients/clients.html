@@ -1,0 +1,172 @@
+<div class="clients-page">
+  <div class="page-header">
+    <h1>Clients OAuth2 / OIDC</h1>
+    <div class="header-actions">
+      <a routerLink="/guide" fragment="clients" class="help-btn" title="Aide sur cette page">? Aide</a>
+      <button class="btn btn-primary" (click)="openCreate()">+ Nouveau client</button>
+    </div>
+  </div>
+
+  @if (error()) {
+    <div class="error-bar">{{ error() }}</div>
+  }
+
+  <!-- Table -->
+  <div class="table-wrapper">
+    <table class="clients-table">
+      <thead>
+        <tr>
+          <th>Client ID</th>
+          <th>Nom affiché</th>
+          <th>Type</th>
+          <th>Permissions</th>
+          <th>Redirect URIs</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        @if (loading()) {
+          <tr><td colspan="6" class="loading-cell">Chargement…</td></tr>
+        } @else if (clients().length === 0) {
+          <tr><td colspan="6" class="empty-cell">Aucun client enregistré.</td></tr>
+        } @else {
+          @for (c of clients(); track c.clientId) {
+            <tr>
+              <td class="mono">{{ c.clientId }}</td>
+              <td>{{ c.displayName ?? '—' }}</td>
+              <td><span [class]="typeBadge(c.clientType)">{{ c.clientType }}</span></td>
+              <td>
+                <button class="btn-link" (click)="openPerms(c)">
+                  {{ permCount(c) }} permission(s)
+                </button>
+              </td>
+              <td class="uri-cell">
+                @if (c.redirectUris.length === 0) {
+                  <span class="muted">—</span>
+                } @else {
+                  @for (u of c.redirectUris; track u) {
+                    <span class="uri-tag">{{ u }}</span>
+                  }
+                }
+              </td>
+              <td class="action-cell">
+                <button class="btn btn-sm btn-outline" title="Modifier" (click)="openEdit(c)">✏</button>
+                <button class="btn btn-sm btn-danger" title="Supprimer" (click)="confirmDelete(c)">🗑</button>
+              </td>
+            </tr>
+          }
+        }
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── Create / Edit modal ──────────────────────────────────────────────── -->
+@if (modalMode() === 'create' || modalMode() === 'edit') {
+  <div class="modal-backdrop" (click)="closeModal()"></div>
+  <div class="modal-box" (click)="$event.stopPropagation()">
+    <h2>{{ modalMode() === 'create' ? 'Nouveau client' : 'Modifier le client' }}</h2>
+
+    <div class="form-group">
+      <label>Client ID *</label>
+      <input
+        class="form-control"
+        [(ngModel)]="form.clientId"
+        [disabled]="modalMode() === 'edit'"
+        placeholder="my-app"
+      />
+    </div>
+
+    <div class="form-group">
+      <label>Nom affiché</label>
+      <input class="form-control" [(ngModel)]="form.displayName" placeholder="Mon Application" />
+    </div>
+
+    <div class="form-group">
+      <label>Type</label>
+      <select class="form-control" [(ngModel)]="form.clientType" [disabled]="modalMode() === 'edit'">
+        <option value="public">public</option>
+        <option value="confidential">confidential</option>
+      </select>
+    </div>
+
+    @if (form.clientType === 'confidential' || modalMode() === 'edit') {
+      <div class="form-group">
+        <label>{{ modalMode() === 'edit' ? 'Nouveau secret (laisser vide pour conserver)' : 'Client Secret *' }}</label>
+        <input class="form-control" type="password" [(ngModel)]="form.clientSecret" placeholder="••••••••" />
+      </div>
+    }
+
+    <!-- Redirect URIs -->
+    <div class="form-group">
+      <label>Redirect URIs</label>
+      <div class="uri-input-row">
+        <input
+          class="form-control"
+          [(ngModel)]="uriInput"
+          placeholder="https://app.example.com/callback"
+          (keyup.enter)="addUri()"
+        />
+        <button class="btn btn-sm btn-outline" (click)="addUri()">Ajouter</button>
+      </div>
+      <div class="uri-list">
+        @for (u of form.redirectUris; track u) {
+          <span class="uri-tag removable">
+            {{ u }}
+            <button class="remove-btn" (click)="removeUri(u)">×</button>
+          </span>
+        }
+      </div>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="closeModal()">Annuler</button>
+      <button class="btn btn-primary" [disabled]="saving()" (click)="submit()">
+        {{ saving() ? 'Enregistrement…' : 'Enregistrer' }}
+      </button>
+    </div>
+  </div>
+}
+
+<!-- ── Permissions detail modal ─────────────────────────────────────────── -->
+@if (modalMode() === 'perms') {
+  <div class="modal-backdrop" (click)="closeModal()"></div>
+  <div class="modal-box modal-wide" (click)="$event.stopPropagation()">
+    <h2>Permissions — {{ permClient?.clientId }}</h2>
+    <p class="hint">Une permission par ligne. Ex: <code>ept:token</code>, <code>scp:openid</code>, <code>gt:password</code></p>
+
+    <div class="form-group">
+      <textarea class="form-control perm-textarea" [(ngModel)]="permLines" rows="12"></textarea>
+    </div>
+
+    <div class="preset-bar">
+      <button class="btn btn-sm btn-outline" (click)="applyPreset()">
+        ↩ Appliquer les permissions de base
+      </button>
+    </div>
+
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="closeModal()">Annuler</button>
+      <button class="btn btn-primary" [disabled]="saving()" (click)="savePerms()">
+        {{ saving() ? 'Enregistrement…' : 'Enregistrer' }}
+      </button>
+    </div>
+  </div>
+}
+
+<!-- ── Delete confirmation ───────────────────────────────────────────────── -->
+@if (showDelete() && deleteTarget()) {
+  <div class="modal-backdrop" (click)="cancelDelete()"></div>
+  <div class="modal-box modal-sm" (click)="$event.stopPropagation()">
+    <h2>Supprimer le client</h2>
+    <p class="delete-warning">
+      Êtes-vous sûr de vouloir supprimer le client
+      <strong>{{ deleteTarget()!.clientId }}</strong> ?<br />
+      Cette action est irréversible.
+    </p>
+    <div class="modal-footer">
+      <button class="btn btn-outline" (click)="cancelDelete()">Annuler</button>
+      <button class="btn btn-danger" (click)="doDelete()">Supprimer</button>
+    </div>
+  </div>
+}

@@ -4,7 +4,10 @@
       <h2>Rôles</h2>
       <p class="subtitle">Gérer les rôles de l'application</p>
     </div>
-    <button class="btn btn-primary" (click)="openCreate()">+ Nouveau rôle</button>
+    <div class="header-actions">
+      <a routerLink="/guide" fragment="roles" class="help-btn" title="Aide sur cette page">? Aide</a>
+      <button class="btn btn-primary" (click)="openCreate()">+ Nouveau rôle</button>
+    </div>
   </div>
 
   <div class="toolbar">
@@ -14,6 +17,14 @@
       placeholder="Rechercher par nom ou application…"
       (input)="onSearchInput($any($event.target).value)"
     />
+    <label class="page-size-label">
+      Trier par
+      <select [ngModel]="currentSortValue" (ngModelChange)="onSortChange($event)">
+        @for (opt of sortOptions; track opt.value) {
+          <option [value]="opt.value">{{ opt.label }}</option>
+        }
+      </select>
+    </label>
     <span class="count">{{ totalCount() }} rôle(s)</span>
     <label class="page-size-label">
       Afficher
@@ -39,14 +50,27 @@
           <div class="role-icon">🛡</div>
           <div class="role-info">
             <span class="role-name">{{ role.name }}</span>
+            @if (role.application) {
+              <span class="role-app">{{ role.application }}</span>
+            }
+            @if (role.description) {
+              <span class="role-desc">{{ role.description }}</span>
+            }
           </div>
-          <button
-            class="btn btn-danger btn-sm"
-            (click)="deleteTarget.set(role)"
-            title="Supprimer ce rôle"
-          >
-            Supprimer
-          </button>
+          <div class="role-actions">
+            <button
+              class="btn btn-ghost btn-sm"
+              (click)="openEdit(role)"
+              title="Modifier"
+            >✏</button>
+            <button
+              class="btn btn-danger btn-sm"
+              (click)="deleteTarget.set(role)"
+              title="Supprimer ce rôle"
+            >
+              Supprimer
+            </button>
+          </div>
         </div>
       } @empty {
         <div class="empty-state">
@@ -106,11 +130,47 @@
           <label>Nom du rôle</label>
           <input type="text" [(ngModel)]="createForm.name" placeholder="ex. Gestionnaire" />
         </div>
+        <div class="field">
+          <label>Application <span class="field-hint">(optionnel)</span></label>
+          <input type="text" [(ngModel)]="createForm.application" placeholder="ex. DashboardCore" />
+        </div>
+        <div class="field">
+          <label>Description <span class="field-hint">(optionnel)</span></label>
+          <input type="text" [(ngModel)]="createForm.description" placeholder="ex. Accès lecture seule" />
+        </div>
       </div>
       <div class="modal-footer">
         <button class="btn btn-ghost" (click)="showCreate.set(false)">Annuler</button>
         <button class="btn btn-primary" (click)="submitCreate()" [disabled]="createLoading()">
           {{ createLoading() ? 'Création…' : 'Créer' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Edit modal ────────────────────────────────────────────────── -->
+@if (showEdit()) {
+  <div class="modal-backdrop" (click)="showEdit.set(false)">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Modifier — {{ editTarget()?.name }}</h3>
+        <button class="modal-close" (click)="showEdit.set(false)">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="field">
+          <label>Application <span class="field-hint">(optionnel)</span></label>
+          <input type="text" [(ngModel)]="editForm.application" placeholder="ex. DashboardCore" />
+        </div>
+        <div class="field">
+          <label>Description <span class="field-hint">(optionnel)</span></label>
+          <input type="text" [(ngModel)]="editForm.description" placeholder="ex. Accès lecture seule" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" (click)="showEdit.set(false)">Annuler</button>
+        <button class="btn btn-primary" (click)="submitEdit()" [disabled]="editLoading()">
+          {{ editLoading() ? 'Enregistrement…' : 'Enregistrer' }}
         </button>
       </div>
     </div>

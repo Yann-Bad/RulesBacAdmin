@@ -1,0 +1,85 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h2>Mon profil</h2>
+      <p class="subtitle">Gérer vos informations personnelles et votre mot de passe</p>
+    </div>
+    <a routerLink="/guide" fragment="profile" class="help-btn" title="Aide sur cette page">? Aide</a>
+  </div>
+
+  @if (error()) {
+    <div class="alert-error">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="loading">Chargement…</div>
+  } @else if (user()) {
+    <div class="profile-grid">
+
+      <!-- ── Identity card ──────────────────────────────────── -->
+      <div class="card identity-card">
+        <div class="avatar-lg">{{ initials }}</div>
+        <div class="identity-info">
+          <p class="identity-name">{{ user()!.userName }}</p>
+          <p class="identity-email">{{ user()!.email }}</p>
+          <div class="role-chips">
+            @for (role of user()!.roles; track role) {
+              <span class="chip" [class.chip-super]="role === 'SuperAdmin'">{{ role }}</span>
+            }
+          </div>
+        </div>
+        <span class="status-badge" [class.active]="user()!.isActive">
+          {{ user()!.isActive ? 'Actif' : 'Inactif' }}
+        </span>
+      </div>
+
+      <!-- ── Edit profile form ──────────────────────────────── -->
+      <div class="card">
+        <h3 class="card-title">Informations personnelles</h3>
+        <div class="field">
+          <label>Prénom</label>
+          <input type="text" [(ngModel)]="profileForm.firstName" placeholder="(optionnel)" />
+        </div>
+        <div class="field">
+          <label>Nom</label>
+          <input type="text" [(ngModel)]="profileForm.lastName" placeholder="(optionnel)" />
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" [(ngModel)]="profileForm.email" />
+        </div>
+        <div class="card-footer">
+          <button class="btn btn-primary" (click)="submitProfile()" [disabled]="profileLoading()">
+            {{ profileLoading() ? 'Enregistrement…' : 'Enregistrer' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Change password form ───────────────────────────── -->
+      <div class="card">
+        <h3 class="card-title">Changer le mot de passe</h3>
+        @if (pwdError()) {
+          <p class="alert-error">{{ pwdError() }}</p>
+        }
+        <div class="field">
+          <label>Mot de passe actuel</label>
+          <input type="password" [(ngModel)]="pwdForm.current" placeholder="••••••••" />
+        </div>
+        <div class="field">
+          <label>Nouveau mot de passe</label>
+          <input type="password" [(ngModel)]="pwdForm.newPwd" placeholder="••••••••" />
+        </div>
+        <div class="field">
+          <label>Confirmer le nouveau mot de passe</label>
+          <input type="password" [(ngModel)]="pwdForm.confirm" placeholder="••••••••" />
+        </div>
+        <div class="card-footer">
+          <button class="btn btn-primary" (click)="submitPassword()" [disabled]="pwdLoading()">
+            {{ pwdLoading() ? 'Modification…' : 'Modifier le mot de passe' }}
+          </button>
+        </div>
+      </div>
+
+    </div>
+  }
+</div>

@@ -1,0 +1,161 @@
+<div class="page">
+  <!-- ── Back link + header ──────────────────────────────────────────── -->
+  <div class="page-header">
+    <a class="back-link" routerLink="/users">← Retour aux utilisateurs</a>
+    @if (user()) {
+      <div class="header-content">
+        <div>
+          <h2>{{ user()!.userName }}</h2>
+          <p class="subtitle">{{ user()!.email }}</p>
+        </div>
+        <div class="header-actions">
+          <button
+            class="btn"
+            [class.btn-warning]="user()!.isActive"
+            [class.btn-success]="!user()!.isActive"
+            (click)="toggleActive()"
+          >
+            {{ user()!.isActive ? 'Désactiver' : 'Activer' }}
+          </button>
+          <button class="btn btn-ghost" (click)="openResetPwd()">🔑 Réinitialiser mot de passe</button>
+          <button class="btn btn-danger" (click)="showDelete.set(true)">🗑 Supprimer</button>
+        </div>
+      </div>
+    }
+  </div>
+
+  <!-- ── Error / loading ───────────────────────────────────────────────── -->
+  @if (error()) {
+    <div class="alert-error">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="loading">Chargement…</div>
+  } @else if (user()) {
+    <div class="detail-grid">
+
+      <!-- ── Identity card ──────────────────────────────────────────── -->
+      <div class="card identity-card">
+        <div class="avatar-lg">{{ initials() }}</div>
+        <div class="identity-info">
+          <p class="identity-name">{{ user()!.userName }}</p>
+          <p class="identity-email">{{ user()!.email }}</p>
+          @if (user()!.firstName || user()!.lastName) {
+            <p class="identity-fullname">{{ user()!.firstName }} {{ user()!.lastName }}</p>
+          }
+        </div>
+        <span class="status-badge" [class.active]="user()!.isActive">
+          {{ user()!.isActive ? 'Actif' : 'Inactif' }}
+        </span>
+      </div>
+
+      <!-- ── Profile edit ───────────────────────────────────────────── -->
+      <div class="card">
+        <h3 class="card-title">Informations personnelles</h3>
+        <div class="field">
+          <label>Prénom</label>
+          <input type="text" [(ngModel)]="profileForm.firstName" placeholder="(optionnel)" />
+        </div>
+        <div class="field">
+          <label>Nom</label>
+          <input type="text" [(ngModel)]="profileForm.lastName" placeholder="(optionnel)" />
+        </div>
+        <div class="field">
+          <label>Email</label>
+          <input type="email" [(ngModel)]="profileForm.email" />
+        </div>
+        <div class="card-footer">
+          <button class="btn btn-primary" (click)="submitProfile()" [disabled]="profileLoading()">
+            {{ profileLoading() ? 'Enregistrement…' : 'Enregistrer' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Role management ────────────────────────────────────────── -->
+      <div class="card">
+        <h3 class="card-title">Rôles</h3>
+        <div class="role-chips">
+          @for (role of user()!.roles; track role) {
+            <span class="chip chip-removable" [class.chip-super]="role === 'SuperAdmin'">
+              {{ role }}
+              <button class="chip-remove" (click)="removeRole(role)" title="Retirer">✕</button>
+            </span>
+          } @empty {
+            <span class="empty-text">Aucun rôle assigné.</span>
+          }
+        </div>
+
+        @if (availableRolesToAdd().length > 0) {
+          <div class="role-add-row">
+            <select [ngModel]="roleToAdd()" (ngModelChange)="roleToAdd.set($event)">
+              <option value="">— Ajouter un rôle —</option>
+              @for (r of availableRolesToAdd(); track r) {
+                <option [value]="r">{{ r }}</option>
+              }
+            </select>
+            <button class="btn btn-primary btn-sm" (click)="assignRole()" [disabled]="!roleToAdd() || roleLoading()">
+              {{ roleLoading() ? '…' : 'Ajouter' }}
+            </button>
+          </div>
+        }
+      </div>
+
+    </div>
+  }
+</div>
+
+<!-- ── Reset password modal ──────────────────────────────────────────── -->
+@if (showResetPwd()) {
+  <div class="modal-backdrop" (click)="showResetPwd.set(false)">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Réinitialiser le mot de passe</h3>
+        <button class="modal-close" (click)="showResetPwd.set(false)">✕</button>
+      </div>
+      <div class="modal-body">
+        @if (resetPwdError()) {
+          <p class="alert-error">{{ resetPwdError() }}</p>
+        }
+        <div class="field">
+          <label>Nouveau mot de passe</label>
+          <input type="password" [(ngModel)]="resetPwdForm.newPassword" placeholder="••••••••" />
+        </div>
+        <div class="field">
+          <label>Confirmer</label>
+          <input type="password" [(ngModel)]="resetPwdForm.confirm" placeholder="••••••••" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" (click)="showResetPwd.set(false)">Annuler</button>
+        <button class="btn btn-primary" (click)="submitResetPwd()" [disabled]="resetPwdLoading()">
+          {{ resetPwdLoading() ? 'Réinitialisation…' : 'Réinitialiser' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Delete confirmation modal ─────────────────────────────────────── -->
+@if (showDelete()) {
+  <div class="modal-backdrop" (click)="showDelete.set(false)">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Supprimer l'utilisateur</h3>
+        <button class="modal-close" (click)="showDelete.set(false)">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="delete-warning">
+          Vous êtes sur le point de supprimer définitivement le compte
+          <strong>{{ user()!.userName }}</strong>.
+          Cette action est <strong>irréversible</strong>.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" (click)="showDelete.set(false)">Annuler</button>
+        <button class="btn btn-danger" (click)="confirmDelete()" [disabled]="deleteLoading()">
+          {{ deleteLoading() ? 'Suppression…' : 'Supprimer définitivement' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

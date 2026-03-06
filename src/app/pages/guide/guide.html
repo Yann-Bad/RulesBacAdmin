@@ -1,0 +1,56 @@
+<div class="guide-page">
+  <div class="guide-header">
+    <h1>📖 Guide d'administration</h1>
+    <p class="subtitle">
+      Référence complète pour administrer RulesBac Admin. Cliquez sur une section pour la développer.
+    </p>
+  </div>
+
+  <div class="sections">
+    @for (section of sections; track section.id) {
+      <div class="section" [class.open]="isOpen(section.id)" [id]="section.id">
+
+        <!-- Accordion header -->
+        <button class="section-header" (click)="toggle(section.id)" [attr.aria-expanded]="isOpen(section.id)">
+          <span class="section-icon">{{ section.icon }}</span>
+          <span class="section-title">{{ section.title }}</span>
+          <span class="section-summary">{{ section.summary }}</span>
+          <span class="chevron">{{ isOpen(section.id) ? '▲' : '▼' }}</span>
+        </button>
+
+        <!-- Accordion body -->
+        @if (isOpen(section.id)) {
+          <div class="section-body">
+
+            <!-- Step-by-step -->
+            <div class="steps-block">
+              <h3 class="block-title">Étapes</h3>
+              <ol class="steps-list">
+                @for (step of section.steps; track step.heading) {
+                  <li class="step">
+                    <strong class="step-heading">{{ step.heading }}</strong>
+                    <p class="step-body">{{ step.body }}</p>
+                  </li>
+                }
+              </ol>
+            </div>
+
+            <!-- Tips -->
+            @if (section.tips.length > 0) {
+              <div class="tips-block">
+                <h3 class="block-title">💡 Conseils</h3>
+                <ul class="tips-list">
+                  @for (tip of section.tips; track tip) {
+                    <li>{{ tip }}</li>
+                  }
+                </ul>
+              </div>
+            }
+
+          </div>
+        }
+
+      </div>
+    }
+  </div>
+</div>

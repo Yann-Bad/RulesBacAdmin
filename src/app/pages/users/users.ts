@@ -2,21 +2,27 @@ import {
   Component, OnInit, OnDestroy, inject, signal, computed
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { Subject, Subscription, debounceTime, distinctUntilChanged, switchMap } from 'rxjs';
 import { UsersService } from '../../services/users.service';
 import { RolesService } from '../../services/roles.service';
-import type { UserDto, RoleDto, RegisterDto, UpdateUserDto } from '../../models/models';
+import { CentresService } from '../../services/centres.service';
+import { ToastService } from '../../services/toast.service';
+import type { UserDto, RoleDto, RegisterDto, UpdateUserDto, UserCentreAssignmentDto, CentreDto } from '../../models/models';
+import { SUBDIVISION_LABELS } from '../../models/models';
 
 @Component({
   selector: 'app-users',
   standalone: true,
-  imports: [FormsModule],
+  imports: [FormsModule, RouterLink],
   templateUrl: './users.html',
   styleUrl: './users.css',
 })
 export class UsersComponent implements OnInit, OnDestroy {
-  private readonly usersService = inject(UsersService);
-  private readonly rolesService = inject(RolesService);
+  private readonly usersService  = inject(UsersService);
+  private readonly rolesService  = inject(RolesService);
+  private readonly centresService = inject(CentresService);
+  private readonly toast         = inject(ToastService);
 
   users       = signal<UserDto[]>([]);
   allRoles    = signal<RoleDto[]>([]);
@@ -51,17 +57,31 @@ export class UsersComponent implements OnInit, OnDestroy {
   // Track current search value for loadUsers() calls
   private currentSearch = '';
 
+  // ── Sorting ──────────────────────────────────────────────────────────────────
+  sortBy  = signal('userName');
+  sortDir = signal<'asc' | 'desc'>('asc');
+
+  sort(col: string): void {
+    if (this.sortBy() === col) {
+      this.sortDir.set(this.sortDir() === 'asc' ? 'desc' : 'asc');
+    } else {
+      this.sortBy.set(col);
+      this.sortDir.set('asc');
+    }
+    this.page.set(1);
+    this.loadUsers();
+  }
+
   // Create modal
-  showCreate  = signal(false);
+  showCreate    = signal(false);
   createForm: RegisterDto = this.emptyCreate();
-  createError = signal('');
+  createError   = signal('');
   createLoading = signal(false);
 
   // Edit modal
   showEdit    = signal(false);
   editTarget  = signal<UserDto | null>(null);
   editForm: UpdateUserDto = { email: '' };
-  editError   = signal('');
   editLoading = signal(false);
 
   // Role modal
@@ -69,11 +89,27 @@ export class UsersComponent implements OnInit, OnDestroy {
   roleTarget  = signal<UserDto | null>(null);
   roleToAdd   = signal('');
   roleLoading = signal(false);
-  roleError   = signal('');
 
   // Delete confirm
-  deleteTarget = signal<UserDto | null>(null);
+  deleteTarget  = signal<UserDto | null>(null);
   deleteLoading = signal(false);
+
+  // Reset password modal
+  showResetPwd    = signal(false);
+  resetPwdTarget  = signal<UserDto | null>(null);
+  resetPwdForm    = { newPassword: '', confirm: '' };
+  resetPwdError   = signal('');
+  resetPwdLoading = signal(false);
+
+  // Centre modal
+  showCentreModal    = signal(false);
+  centreTarget       = signal<UserDto | null>(null);
+  userCentres        = signal<UserCentreAssignmentDto[]>([]);
+  userCentresLoading = signal(false);
+  allCentres         = signal<CentreDto[]>([]);
+  addCentreId        = signal<number | null>(null);
+  addCentreIsPrimary = signal(false);
+  readonly subdivisionLabels = SUBDIVISION_LABELS;
 
   ngOnInit(): void {
     // Debounce search input: wait 300 ms after the user stops typing, then
@@ -117,7 +153,7 @@ export class UsersComponent implements OnInit, OnDestroy {
   private loadUsers(): void {
     this.loading.set(true);
     this.error.set('');
-    this.usersService.list(this.page(), this.pageSize(), this.currentSearch).subscribe({
+    this.usersService.list(this.page(), this.pageSize(), this.currentSearch, this.sortBy(), this.sortDir()).subscribe({
       next: result => {
         this.users.set(result.items);
         this.totalCount.set(result.totalCount);
@@ -157,10 +193,12 @@ export class UsersComponent implements OnInit, OnDestroy {
       next: () => {
         this.showCreate.set(false);
         this.createLoading.set(false);
-        this.loadUsers(); // reload the current page to show the new user
+        this.toast.success('Utilisateur créé avec succès.');
+        this.loadUsers();
       },
-      error: () => {
-        this.createError.set('Erreur lors de la création.');
+      error: (err) => {
+        const msg = err?.error?.error ?? 'Erreur lors de la création.';
+        this.createError.set(msg);
         this.createLoading.set(false);
       },
     });
@@ -170,7 +208,6 @@ export class UsersComponent implements OnInit, OnDestroy {
   openEdit(user: UserDto): void {
     this.editTarget.set(user);
     this.editForm = { email: user.email, firstName: user.firstName, lastName: user.lastName };
-    this.editError.set('');
     this.showEdit.set(true);
   }
 
@@ -185,9 +222,11 @@ export class UsersComponent implements OnInit, OnDestroy {
         );
         this.showEdit.set(false);
         this.editLoading.set(false);
+        this.toast.success('Profil mis à jour.');
       },
-      error: () => {
-        this.editError.set('Erreur lors de la mise à jour.');
+      error: (err) => {
+        const msg = err?.error?.error ?? 'Erreur lors de la mise à jour.';
+        this.toast.error(msg);
         this.editLoading.set(false);
       },
     });
@@ -197,7 +236,6 @@ export class UsersComponent implements OnInit, OnDestroy {
   openRoles(user: UserDto): void {
     this.roleTarget.set(user);
     this.roleToAdd.set('');
-    this.roleError.set('');
     this.showRoles.set(true);
   }
 
@@ -216,9 +254,10 @@ export class UsersComponent implements OnInit, OnDestroy {
         this.roleTarget.update(u => u ? { ...u, roles: [...u.roles, role] } : u);
         this.roleToAdd.set('');
         this.roleLoading.set(false);
+        this.toast.success(`Rôle '${role}' assigné.`);
       },
       error: () => {
-        this.roleError.set('Erreur lors de l\'assignation.');
+        this.toast.error('Erreur lors de l\'assignation du rôle.');
         this.roleLoading.set(false);
       },
     });
@@ -234,8 +273,9 @@ export class UsersComponent implements OnInit, OnDestroy {
           list.map(u => u.id === user.id ? updated : u)
         );
         this.roleTarget.set(updated);
+        this.toast.success(`Rôle '${roleName}' supprimé.`);
       },
-      error: () => this.roleError.set('Erreur lors de la suppression du rôle.'),
+      error: () => this.toast.error('Erreur lors de la suppression du rôle.'),
     });
   }
 
@@ -252,23 +292,109 @@ export class UsersComponent implements OnInit, OnDestroy {
   }
 
   confirmDelete(): void {
-    // No delete endpoint in UsersController — use deactivate instead
     const user = this.deleteTarget();
     if (!user) return;
     this.deleteLoading.set(true);
-    this.usersService.setActive(user.id, false).subscribe({
+    this.usersService.delete(user.id).subscribe({
       next: () => {
-        this.users.update(list =>
-          list.map(u => u.id === user.id ? { ...u, isActive: false } : u)
-        );
+        this.users.update(list => list.filter(u => u.id !== user.id));
+        this.totalCount.update(n => n - 1);
         this.deleteTarget.set(null);
         this.deleteLoading.set(false);
+        this.toast.success(`Utilisateur « ${user.userName} » supprimé définitivement.`);
       },
-      error: () => this.deleteLoading.set(false),
+      error: () => {
+        this.toast.error('Erreur lors de la suppression.');
+        this.deleteLoading.set(false);
+      },
     });
   }
 
   private emptyCreate(): RegisterDto {
     return { userName: '', email: '', password: '' };
+  }
+
+  // ── Centres ────────────────────────────────────────────────────────────
+  openCentres(user: UserDto): void {
+    this.centreTarget.set(user);
+    this.userCentres.set([]);
+    this.addCentreId.set(null);
+    this.addCentreIsPrimary.set(false);
+    this.showCentreModal.set(true);
+    this.userCentresLoading.set(true);
+    this.centresService.getForUser(user.id).subscribe({
+      next:  cs => { this.userCentres.set(cs); this.userCentresLoading.set(false); },
+      error: ()  => this.userCentresLoading.set(false),
+    });
+    if (this.allCentres().length === 0) {
+      this.centresService.list().subscribe({ next: cs => this.allCentres.set(cs) });
+    }
+  }
+
+  availableCentresToAdd(): CentreDto[] {
+    const assigned = new Set(this.userCentres().map(c => c.centreId));
+    return this.allCentres().filter(c => !assigned.has(c.id) && c.isActive);
+  }
+
+  assignCentreToUser(): void {
+    const user     = this.centreTarget();
+    const centreId = this.addCentreId();
+    if (!user || centreId === null) return;
+    this.centresService.assign({ userId: user.id, centreId, isPrimary: this.addCentreIsPrimary() }).subscribe({
+      next: () => {
+        this.toast.success('Centre affecté.');
+        this.addCentreId.set(null);
+        this.addCentreIsPrimary.set(false);
+        this.centresService.getForUser(user.id).subscribe({ next: cs => this.userCentres.set(cs) });
+      },
+      error: err => this.toast.error(err?.error?.detail ?? 'Erreur lors de l\'affectation.'),
+    });
+  }
+
+  removeCentreFromUser(centreId: number): void {
+    const user = this.centreTarget();
+    if (!user) return;
+    this.centresService.unassign(user.id, centreId).subscribe({
+      next: () => {
+        this.userCentres.update(list => list.filter(c => c.centreId !== centreId));
+        this.toast.success('Centre retiré.');
+      },
+      error: err => this.toast.error(err?.error?.detail ?? 'Erreur lors du retrait.'),
+    });
+  }
+
+  // ── Reset password ─────────────────────────────────────────────────────
+  openResetPwd(user: UserDto): void {
+    this.resetPwdTarget.set(user);
+    this.resetPwdForm = { newPassword: '', confirm: '' };
+    this.resetPwdError.set('');
+    this.showResetPwd.set(true);
+  }
+
+  submitResetPwd(): void {
+    const { newPassword, confirm } = this.resetPwdForm;
+    if (!newPassword) {
+      this.resetPwdError.set('Le mot de passe ne peut pas être vide.');
+      return;
+    }
+    if (newPassword !== confirm) {
+      this.resetPwdError.set('Les mots de passe ne correspondent pas.');
+      return;
+    }
+    const target = this.resetPwdTarget();
+    if (!target) return;
+    this.resetPwdLoading.set(true);
+    this.usersService.resetPassword(target.id, newPassword).subscribe({
+      next: () => {
+        this.showResetPwd.set(false);
+        this.resetPwdLoading.set(false);
+        this.toast.success(`Mot de passe de ${target.userName} réinitialisé.`);
+      },
+      error: (err) => {
+        const msg = err?.error?.error ?? 'Erreur lors de la réinitialisation.';
+        this.resetPwdError.set(msg);
+        this.resetPwdLoading.set(false);
+      },
+    });
   }
 }

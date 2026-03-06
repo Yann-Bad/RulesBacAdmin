@@ -168,8 +168,14 @@
   font-size: 0.875rem;
   cursor: pointer;
   text-align: left;
-  border-radius: 0 0 10px 10px;
+  text-decoration: none;
+  border-radius: 0;
   transition: background 0.15s, color 0.15s;
+}
+
+.dropdown-item:hover {
+  background: rgba(99, 102, 241, 0.08);
+  color: #f1f5f9;
 }
 
 .dropdown-item.logout:hover {

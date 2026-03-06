@@ -73,6 +73,36 @@
   color: #f1f5f9;
 }
 
+.role-app {
+  display: block;
+  font-size: 0.75rem;
+  color: #6366f1;
+  font-weight: 600;
+  margin-top: 0.2rem;
+}
+
+.role-desc {
+  display: block;
+  font-size: 0.75rem;
+  color: #64748b;
+  margin-top: 0.15rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.role-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.field-hint {
+  font-weight: 400;
+  color: #475569;
+}
+
 .empty-state {
   grid-column: 1 / -1;
   text-align: center;
