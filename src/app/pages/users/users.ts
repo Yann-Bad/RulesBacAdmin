@@ -8,7 +8,7 @@ import { UsersService } from '../../services/users.service';
 import { RolesService } from '../../services/roles.service';
 import { CentresService } from '../../services/centres.service';
 import { ToastService } from '../../services/toast.service';
-import type { UserDto, RoleDto, RegisterDto, UpdateUserDto, UserCentreAssignmentDto, CentreDto } from '../../models/models';
+import type { UserDto, RoleDto, RegisterDto, UpdateUserDto, UserCentreAssignmentDto, CentreDto, UserApplicationDto } from '../../models/models';
 import { SUBDIVISION_LABELS } from '../../models/models';
 
 @Component({
@@ -85,10 +85,11 @@ export class UsersComponent implements OnInit, OnDestroy {
   editLoading = signal(false);
 
   // Role modal
-  showRoles   = signal(false);
-  roleTarget  = signal<UserDto | null>(null);
-  roleToAdd   = signal('');
-  roleLoading = signal(false);
+  showRoles      = signal(false);
+  roleTarget     = signal<UserDto | null>(null);
+  roleAppFilter  = signal('');   // selected application before picking a role
+  roleToAdd      = signal('');
+  roleLoading    = signal(false);
 
   // Delete confirm
   deleteTarget  = signal<UserDto | null>(null);
@@ -110,6 +111,14 @@ export class UsersComponent implements OnInit, OnDestroy {
   addCentreId        = signal<number | null>(null);
   addCentreIsPrimary = signal(false);
   readonly subdivisionLabels = SUBDIVISION_LABELS;
+
+  // Application modal
+  showAppModal    = signal(false);
+  appTarget       = signal<UserDto | null>(null);
+  userApps        = signal<UserApplicationDto[]>([]);
+  userAppsLoading = signal(false);
+  allApps         = signal<UserApplicationDto[]>([]);
+  addAppClientId  = signal<string | null>(null);
 
   ngOnInit(): void {
     // Debounce search input: wait 300 ms after the user stops typing, then
@@ -235,8 +244,14 @@ export class UsersComponent implements OnInit, OnDestroy {
   // ── Roles ──────────────────────────────────────────────────────────────
   openRoles(user: UserDto): void {
     this.roleTarget.set(user);
+    this.roleAppFilter.set('');
     this.roleToAdd.set('');
     this.showRoles.set(true);
+  }
+
+  onRoleAppFilterChange(app: string): void {
+    this.roleAppFilter.set(app);
+    this.roleToAdd.set('');
   }
 
   assignRole(): void {
@@ -244,6 +259,7 @@ export class UsersComponent implements OnInit, OnDestroy {
     const role = this.roleToAdd();
     if (!user || !role) return;
     this.roleLoading.set(true);
+    // role here is the role name string
     this.usersService.assignRole({ userId: user.id, roleName: role }).subscribe({
       next: () => {
         this.users.update(list =>
@@ -279,11 +295,29 @@ export class UsersComponent implements OnInit, OnDestroy {
     });
   }
 
-  availableRolesToAdd(): string[] {
-    const current = this.roleTarget()?.roles ?? [];
-    return this.allRoles()
-      .map(r => r.name)
-      .filter(n => !current.includes(n));
+  /** Distinct application names present in the full role list. */
+  distinctApplications(): string[] {
+    const apps = new Set(
+      this.allRoles()
+        .map(r => r.application ?? '')
+        .filter(a => a !== '')
+    );
+    return Array.from(apps).sort();
+  }
+
+  /** Roles not yet assigned to the user, optionally filtered by application. */
+  availableRolesToAdd(): RoleDto[] {
+    const current = new Set(this.roleTarget()?.roles ?? []);
+    const appFilter = this.roleAppFilter();
+    return this.allRoles().filter(r =>
+      !current.has(r.name) &&
+      (appFilter === '' || (r.application ?? '') === appFilter)
+    );
+  }
+
+  /** Look up the application a currently-assigned role belongs to. */
+  roleApplication(roleName: string): string {
+    return this.allRoles().find(r => r.name === roleName)?.application ?? '';
   }
 
   // ── Delete ─────────────────────────────────────────────────────────────
@@ -362,7 +396,53 @@ export class UsersComponent implements OnInit, OnDestroy {
       error: err => this.toast.error(err?.error?.detail ?? 'Erreur lors du retrait.'),
     });
   }
+  // ── Applications ───────────────────────────────────────────────────
+  openApps(user: UserDto): void {
+    this.appTarget.set(user);
+    this.userApps.set([]);
+    this.addAppClientId.set(null);
+    this.showAppModal.set(true);
+    this.userAppsLoading.set(true);
+    this.usersService.getApplications(user.id).subscribe({
+      next:  apps => { this.userApps.set(apps); this.userAppsLoading.set(false); },
+      error: ()   => this.userAppsLoading.set(false),
+    });
+    // Load all registered clients once and cache
+    if (this.allApps().length === 0) {
+      this.usersService.getAllClients().subscribe({ next: clients => this.allApps.set(clients) });
+    }
+  }
 
+  availableApps(): UserApplicationDto[] {
+    const assigned = new Set(this.userApps().map(a => a.clientId));
+    return this.allApps().filter(a => !assigned.has(a.clientId));
+  }
+
+  assignAppToUser(): void {
+    const user     = this.appTarget();
+    const clientId = this.addAppClientId();
+    if (!user || !clientId) return;
+    this.usersService.assignApplication(user.id, clientId).subscribe({
+      next: app => {
+        this.userApps.update(list => [...list, app]);
+        this.addAppClientId.set(null);
+        this.toast.success('Application attribuée.');
+      },
+      error: err => this.toast.error(err?.error?.error ?? 'Erreur lors de l\'attribution.'),
+    });
+  }
+
+  removeAppFromUser(clientId: string): void {
+    const user = this.appTarget();
+    if (!user) return;
+    this.usersService.removeApplication(user.id, clientId).subscribe({
+      next: () => {
+        this.userApps.update(list => list.filter(a => a.clientId !== clientId));
+        this.toast.success('Application retirée.');
+      },
+      error: err => this.toast.error(err?.error?.detail ?? 'Erreur lors du retrait.'),
+    });
+  }
   // ── Reset password ─────────────────────────────────────────────────────
   openResetPwd(user: UserDto): void {
     this.resetPwdTarget.set(user);

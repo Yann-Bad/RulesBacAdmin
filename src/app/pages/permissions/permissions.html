@@ -1,0 +1,150 @@
+<div class="page">
+  <div class="page-header">
+    <div>
+      <h2>Permissions</h2>
+      <p class="subtitle">Gérer les permissions disponibles par application</p>
+    </div>
+    <button class="btn btn-primary" (click)="openCreate()">+ Nouvelle permission</button>
+  </div>
+
+  <!-- Filter by application -->
+  <div class="toolbar">
+    <div class="filter-tabs">
+      <button
+        class="filter-tab"
+        [class.active]="appFilter() === ''"
+        (click)="appFilter.set('')"
+      >Toutes</button>
+      @for (app of knownApplications; track app) {
+        <button
+          class="filter-tab"
+          [class.active]="appFilter() === app.toLowerCase()"
+          (click)="appFilter.set(app.toLowerCase())"
+        >{{ app }}</button>
+      }
+    </div>
+    <span class="count">{{ filtered().length }} permission(s)</span>
+  </div>
+
+  @if (error()) {
+    <div class="alert-error">{{ error() }}</div>
+  }
+
+  @if (loading()) {
+    <div class="loading">Chargement…</div>
+  } @else {
+    <div class="perm-table-wrap">
+      <table class="perm-table">
+        <thead>
+          <tr>
+            <th>Nom</th>
+            <th>Application</th>
+            <th>Description</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (perm of filtered(); track perm.id) {
+            <tr>
+              <td class="perm-name">{{ perm.name }}</td>
+              <td><span class="app-badge">{{ perm.application }}</span></td>
+              <td class="perm-desc">{{ perm.description ?? '—' }}</td>
+              <td class="perm-actions">
+                <button
+                  class="btn btn-danger btn-sm"
+                  (click)="deleteTarget.set(perm)"
+                  title="Supprimer cette permission"
+                >Supprimer</button>
+              </td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="4" class="empty-state">Aucune permission trouvée.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+</div>
+
+<!-- ── Create modal ──────────────────────────────────────────────── -->
+@if (showCreate()) {
+  <div class="modal-backdrop" (click)="showCreate.set(false)">
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Nouvelle permission</h3>
+        <button class="modal-close" (click)="showCreate.set(false)">✕</button>
+      </div>
+      <div class="modal-body">
+        @if (createError()) {
+          <p class="alert-error">{{ createError() }}</p>
+        }
+        <div class="field">
+          <label>Nom <span class="field-required">*</span></label>
+          <input
+            type="text"
+            [(ngModel)]="createForm.name"
+            placeholder="ex. dashboard:export"
+            autocomplete="off"
+          />
+          <p class="field-hint-text">Convention : <code>application:action</code></p>
+        </div>
+        <div class="field">
+          <label>Application <span class="field-required">*</span></label>
+          <input
+            type="text"
+            [(ngModel)]="createForm.application"
+            list="known-apps"
+            placeholder="ex. Dashboard"
+            autocomplete="off"
+          />
+          <datalist id="known-apps">
+            @for (app of knownApplications; track app) {
+              <option [value]="app">{{ app }}</option>
+            }
+          </datalist>
+        </div>
+        <div class="field">
+          <label>Description <span class="field-hint">(optionnel)</span></label>
+          <input
+            type="text"
+            [(ngModel)]="createForm.description"
+            placeholder="ex. Exporter les données en CSV"
+          />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" (click)="showCreate.set(false)">Annuler</button>
+        <button class="btn btn-primary" (click)="submitCreate()" [disabled]="createLoading()">
+          {{ createLoading() ? 'Création…' : 'Créer' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Delete confirm ────────────────────────────────────────────── -->
+@if (deleteTarget()) {
+  <div class="modal-backdrop" (click)="deleteTarget.set(null)">
+    <div class="modal modal-sm" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Supprimer la permission</h3>
+        <button class="modal-close" (click)="deleteTarget.set(null)">✕</button>
+      </div>
+      <div class="modal-body">
+        <p>Confirmez-vous la suppression de <strong>{{ deleteTarget()!.name }}</strong> ?</p>
+        <p class="warn-text">
+          Cette permission sera retirée de tous les rôles auxquels elle est assignée,
+          et n'apparaîtra plus dans les tokens.
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" (click)="deleteTarget.set(null)">Annuler</button>
+        <button class="btn btn-danger" (click)="confirmDelete()" [disabled]="deleteLoading()">
+          {{ deleteLoading() ? 'Suppression…' : 'Supprimer' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

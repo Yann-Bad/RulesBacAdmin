@@ -103,6 +103,11 @@
   color: #475569;
 }
 
+.field-required {
+  color: #f87171;
+  font-weight: 700;
+}
+
 .empty-state {
   grid-column: 1 / -1;
   text-align: center;
@@ -369,4 +374,70 @@
   color: #475569;
   font-size: 0.85rem;
   user-select: none;
+}
+
+/* ── Permission chips ──────────────────────────────────────── */
+.modal.modal-lg { max-width: 580px; }
+
+.perm-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  padding: 0.5rem 0;
+  min-height: 2rem;
+}
+
+.perm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: rgba(99, 102, 241, 0.15);
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  color: #a5b4fc;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+}
+
+.chip-remove {
+  background: none;
+  border: none;
+  color: #6366f1;
+  cursor: pointer;
+  font-size: 0.7rem;
+  padding: 0;
+  line-height: 1;
+  opacity: 0.7;
+}
+
+.chip-remove:hover { opacity: 1; color: #f87171; }
+
+.empty-hint {
+  color: #475569;
+  font-size: 0.8rem;
+  font-style: italic;
+}
+
+.perm-add-row { margin-top: 1.25rem; }
+
+.perm-add-controls {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.perm-add-controls select {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  background: #0f172a;
+  border: 1px solid #334155;
+  border-radius: 8px;
+  color: #f1f5f9;
+  font-size: 0.875rem;
+}
+
+.perm-add-controls select:focus {
+  outline: none;
+  border-color: #6366f1;
 }

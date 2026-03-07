@@ -46,6 +46,10 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/roles/roles').then(m => m.RolesComponent),
       },
       {
+        path: 'permissions',
+        loadComponent: () => import('./pages/permissions/permissions').then(m => m.PermissionsComponent),
+      },
+      {
         path: 'profile',
         loadComponent: () => import('./pages/profile/profile').then(m => m.ProfileComponent),
       },

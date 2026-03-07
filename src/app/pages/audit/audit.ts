@@ -25,7 +25,7 @@ export class AuditComponent implements OnInit, OnDestroy {
 
   // ── Pagination & search ─────────────────────────────────────────────────
   page       = signal(1);
-  pageSize   = signal(25);
+  pageSize   = signal(10);
   totalCount = signal(0);
 
   searchTerm   = '';

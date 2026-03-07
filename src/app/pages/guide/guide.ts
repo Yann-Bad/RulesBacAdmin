@@ -5,6 +5,7 @@ export type SectionId =
   | 'dashboard'
   | 'users'
   | 'roles'
+  | 'permissions'
   | 'audit'
   | 'clients'
   | 'profile';
@@ -31,7 +32,7 @@ const SECTIONS: GuideSection[] = [
       },
       {
         heading: 'Naviguer vers un module',
-        body: 'Utilisez les liens de navigation en haut de page pour accéder directement à la gestion des utilisateurs, des rôles, du journal d\'audit ou des clients OAuth2.',
+        body: 'La barre de navigation est organisée en trois groupes : « Tableau de bord » seul, puis le groupe Identité & accès (Utilisateurs, Rôles, Permissions, Clients OAuth2), et enfin le groupe Opérations (Centres, Présence, Audit). Cliquez sur le lien souhaité pour y accéder directement.',
       },
     ],
     tips: [
@@ -90,31 +91,70 @@ const SECTIONS: GuideSection[] = [
   },
   {
     id:      'roles',
-    icon:    '🛡️',
+    icon:    '🛡',
     title:   'Gestion des rôles',
-    summary: 'Définissez les rôles disponibles dans le système, leur description et leur application cible.',
+    summary: 'Définissez les rôles disponibles dans le système, leur description, leur application cible et les permissions qu\'ils accordent.',
     steps: [
       {
         heading: 'Créer un rôle',
-        body: 'Cliquez sur "+ Nouveau rôle". Donnez-lui un nom unique (ex : "Manager"), une description et, optionnellement, le nom de l\'application cible (ex : "Dashboard").',
+        body: 'Cliquez sur "+ Nouveau rôle". Renseignez le nom unique (ex : "Manager"), l\'application cible (obligatoire — ex : "Dashboard") et une description optionnelle. L\'application détermine dans quels tokens le rôle apparaît.',
       },
       {
         heading: 'Modifier un rôle',
         body: 'Cliquez sur l\'icône ✏. Seules la description et l\'application sont modifiables ; le nom est immuable car il sert de clé dans le système.',
       },
       {
+        heading: 'Gérer les permissions d\'un rôle',
+        body: 'Cliquez sur l\'icône 🔑 pour ouvrir le panneau de permissions du rôle. Les permissions déjà assignées apparaissent sous forme de puces — cliquez ✕ pour en retirer une. Sélectionnez une permission disponible dans la liste déroulante et cliquez « Assigner » pour l\'ajouter. Les permissions disponibles sont filtrées selon l\'application du rôle.',
+      },
+      {
         heading: 'Supprimer un rôle',
-        body: 'Cliquez sur l\'icône 🗑 puis confirmez. Attention : supprimer un rôle le retire automatiquement de tous les utilisateurs qui le possèdent.',
+        body: 'Cliquez sur « Supprimer » puis confirmez. Attention : supprimer un rôle retire automatiquement toutes ses permissions et effacera le rôle de tous les utilisateurs qui le possèdent.',
       },
       {
         heading: 'Rechercher et trier',
-        body: 'Utilisez la barre de recherche et le menu déroulant de tri. Le tri peut se faire sur le nom ou la date de création.',
+        body: 'Utilisez la barre de recherche et le menu déroulant de tri. Le tri peut se faire sur le nom ou l\'application.',
       },
     ],
     tips: [
-      'Nommez les rôles de façon explicite et préfixez-les par l\'application si vous gérez plusieurs projets (ex : "Dashboard.Viewer").',
-      'Le rôle "SuperAdmin" est réservé : il donne accès à toute l\'interface d\'administration.',
+      'L\'application est obligatoire à la création : elle isole le rôle dans le bon contexte (ex : un rôle "Admin" de Dashboard n\'interfère pas avec RubacCore).',
+      'Le rôle "SuperAdmin" est réservé à RubacCore : il donne accès à toute l\'interface d\'administration.',
+      'Les permissions définissent réellement ce que le rôle peut faire — un rôle sans permission n\'autorise aucune action dans l\'API.',
       'Ne supprimez pas un rôle sans vous assurer qu\'aucun utilisateur actif n\'en dépend.',
+    ],
+  },
+  {
+    id:      'permissions',
+    icon:    '🔑',
+    title:   'Gestion des permissions',
+    summary: 'Créez et supprimez les permissions fins que les rôles peuvent accorder. Les permissions sont émises comme claims dans les tokens JWT.',
+    steps: [
+      {
+        heading: 'Comprendre le modèle RBAC à trois niveaux',
+        body: 'Le système utilise trois couches : Scopes OAuth2 (quelle audience reçoit le token), Rôles (groupe de l\'utilisateur) et Permissions (droit fin de type « resource:action »). Un utilisateur obtient les permissions de tous ses rôles. Ces permissions apparaissent comme claims « permission » dans le token d\'accès et sont vérifiées côté API.',
+      },
+      {
+        heading: 'Filtrer par application',
+        body: 'En haut de la liste, les onglets « Toutes », « RubacCore » et « Dashboard » filtrent les permissions par application. Cliquez sur un onglet pour restreindre l\'affichage.',
+      },
+      {
+        heading: 'Créer une permission',
+        body: 'Cliquez sur « + Nouvelle permission ». Renseignez le nom (convention obligatoire : application:action, ex : « dashboard:export »), l\'application cible (obligatoire) et une description optionnelle.',
+      },
+      {
+        heading: 'Assigner une permission à un rôle',
+        body: 'La création d\'une permission ne l\'assigne pas automatiquement. Allez dans la page Rôles, ouvrez le panneau 🔑 du rôle souhaité, puis sélectionnez la nouvelle permission dans la liste déroulante et cliquez « Assigner ».',
+      },
+      {
+        heading: 'Supprimer une permission',
+        body: 'Cliquez sur « Supprimer » dans la ligne de la permission et confirmez. La permission est immédiatement retirée de tous les rôles auxquels elle était assignée et n\'apparaîtra plus dans les futurs tokens.',
+      },
+    ],
+    tips: [
+      'Convention de nommage : « application:action » en minuscules, avec tiret pour les actions composées (ex : rubac:manage-users).',
+      'Permissions par défaut : dashboard:read · dashboard:write · dashboard:admin · rubac:manage-users · rubac:manage-roles.',
+      'Les tokens en cours de validité ne sont pas révoqués immédiatement — la permission disparaît au prochain login ou refresh.',
+      'Une même permission peut être assignée à plusieurs rôles (ex : dashboard:read sur Admin, Manager et Consultant).',
     ],
   },
   {
@@ -148,7 +188,7 @@ const SECTIONS: GuideSection[] = [
   },
   {
     id:      'clients',
-    icon:    '🔑',
+    icon:    '⬡',
     title:   'Clients OAuth2 / OIDC',
     summary: 'Enregistrez et gérez les applications clientes qui s\'authentifient via le serveur OpenIddict (RubacCore).',
     steps: [

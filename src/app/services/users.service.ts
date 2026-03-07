@@ -2,7 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { environment } from '../../environments/environment';
 import type { Observable } from 'rxjs';
-import type { UserDto, RegisterDto, UpdateUserDto, AssignRoleDto, PagedResult } from '../models/models';
+import { map } from 'rxjs/operators';
+import type { UserDto, RegisterDto, UpdateUserDto, AssignRoleDto, PagedResult, UserApplicationDto, ClientDto } from '../models/models';
 
 @Injectable({ providedIn: 'root' })
 export class UsersService {
@@ -57,6 +58,25 @@ export class UsersService {
 
   removeRole(userId: number, roleName: string): Observable<void> {
     return this.http.delete<void>(`${this.base}/${userId}/roles/${roleName}`);
+  }
+
+  getApplications(userId: number): Observable<UserApplicationDto[]> {
+    return this.http.get<UserApplicationDto[]>(`${this.base}/${userId}/applications`);
+  }
+
+  assignApplication(userId: number, clientId: string): Observable<UserApplicationDto> {
+    return this.http.post<UserApplicationDto>(`${this.base}/${userId}/applications/${encodeURIComponent(clientId)}`, {});
+  }
+
+  removeApplication(userId: number, clientId: string): Observable<void> {
+    return this.http.delete<void>(`${this.base}/${userId}/applications/${encodeURIComponent(clientId)}`);
+  }
+
+  /** Returns all registered OIDC clients mapped to UserApplicationDto for the application picker. */
+  getAllClients(): Observable<UserApplicationDto[]> {
+    return this.http
+      .get<ClientDto[]>(`${environment.apiBase}/clients`)
+      .pipe(map(clients => clients.map(c => ({ clientId: c.clientId, displayName: c.displayName }))));
   }
 
   delete(id: number): Observable<void> {

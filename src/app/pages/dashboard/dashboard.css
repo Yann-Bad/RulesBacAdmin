@@ -148,3 +148,87 @@
   color: #475569;
   font-size: 0.85rem;
 }
+
+/* ── Per-application list ───────────────────────────────────── */
+.app-list-card {
+  background: #1e293b;
+  border: 1px solid #334155;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.app-list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 2rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid #1e3a5f30;
+}
+
+.app-list-item--last {
+  border-bottom: none;
+}
+
+.app-list-left {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  min-width: 160px;
+  flex-shrink: 0;
+}
+
+.app-badge {
+  display: inline-block;
+  background: rgba(99, 102, 241, 0.15);
+  color: #818cf8;
+  border: 1px solid rgba(99, 102, 241, 0.3);
+  border-radius: 6px;
+  padding: 0.2rem 0.65rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  width: fit-content;
+}
+
+.app-counts {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.app-count {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.app-count strong {
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.app-list-bars {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  justify-content: center;
+}
+
+.app-bar-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 42px;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.app-bar-label {
+  font-size: 0.78rem;
+  color: #64748b;
+  text-align: right;
+}
+
+.bar-fill--indigo { background: #6366f1; }
+.bar-fill--purple { background: #a855f7; }
+.bar-fill--amber  { background: #f59e0b; }
+
+.stat-icon--amber { background: rgba(245, 158, 11, 0.15); }

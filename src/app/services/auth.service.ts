@@ -24,7 +24,7 @@ export class AuthService {
   login(userName: string, password: string): Observable<void> {
     const body = new HttpParams()
       .set('grant_type',  'password')
-      .set('client_id',   'rubac-admin')
+      .set('client_id',   'RubacCore')
       .set('username',    userName)
       .set('password',    password)
       .set('scope',       'openid profile email roles rubac offline_access');
@@ -51,7 +51,7 @@ export class AuthService {
 
     const body = new HttpParams()
       .set('grant_type',    'refresh_token')
-      .set('client_id',     'rubac-admin')
+      .set('client_id',     'RubacCore')
       .set('refresh_token', refreshToken);
 
     this.refreshInFlight$ = this.http

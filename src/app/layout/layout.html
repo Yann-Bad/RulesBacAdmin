@@ -6,13 +6,39 @@
     </div>
 
     <nav class="nav">
-      <a routerLink="/dashboard" routerLinkActive="active">Tableau de bord</a>
-      <a routerLink="/users" routerLinkActive="active">Utilisateurs</a>
-      <a routerLink="/roles" routerLinkActive="active">Rôles</a>
-      <a routerLink="/audit" routerLinkActive="active">Journal d'audit</a>
-      <a routerLink="/clients" routerLinkActive="active">Clients OAuth2</a>
-      <a routerLink="/presence" routerLinkActive="active">Présence</a>
-      <a routerLink="/centres" routerLinkActive="active">Centres</a>
+      <!-- Overview -->
+      <a routerLink="/dashboard" routerLinkActive="active">
+        <span class="nav-icon">▤</span> Tableau de bord
+      </a>
+
+      <span class="nav-sep"></span>
+
+      <!-- Identity & access -->
+      <a routerLink="/users" routerLinkActive="active">
+        <span class="nav-icon">👥</span> Utilisateurs
+      </a>
+      <a routerLink="/roles" routerLinkActive="active">
+        <span class="nav-icon">🛡</span> Rôles
+      </a>
+      <a routerLink="/permissions" routerLinkActive="active">
+        <span class="nav-icon">🔑</span> Permissions
+      </a>
+      <a routerLink="/clients" routerLinkActive="active">
+        <span class="nav-icon">⬡</span> Clients OAuth2
+      </a>
+
+      <span class="nav-sep"></span>
+
+      <!-- Operations -->
+      <a routerLink="/centres" routerLinkActive="active">
+        <span class="nav-icon">🏢</span> Centres
+      </a>
+      <a routerLink="/presence" routerLinkActive="active">
+        <span class="nav-icon">📡</span> Présence
+      </a>
+      <a routerLink="/audit" routerLinkActive="active">
+        <span class="nav-icon">📋</span> Audit
+      </a>
     </nav>
 
     <div class="user-area">

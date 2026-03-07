@@ -60,6 +60,11 @@
           <div class="role-actions">
             <button
               class="btn btn-ghost btn-sm"
+              (click)="openPerms(role)"
+              title="Gérer les permissions"
+            >🔑</button>
+            <button
+              class="btn btn-ghost btn-sm"
               (click)="openEdit(role)"
               title="Modifier"
             >✏</button>
@@ -131,8 +136,19 @@
           <input type="text" [(ngModel)]="createForm.name" placeholder="ex. Gestionnaire" />
         </div>
         <div class="field">
-          <label>Application <span class="field-hint">(optionnel)</span></label>
-          <input type="text" [(ngModel)]="createForm.application" placeholder="ex. DashboardCore" />
+          <label>Application <span class="field-required">*</span></label>
+          <input
+            type="text"
+            [(ngModel)]="createForm.application"
+            list="known-apps"
+            placeholder="ex. Dashboard"
+            autocomplete="off"
+          />
+          <datalist id="known-apps">
+            @for (app of knownApplications; track app) {
+              <option [value]="app">{{ app }}</option>
+            }
+          </datalist>
         </div>
         <div class="field">
           <label>Description <span class="field-hint">(optionnel)</span></label>
@@ -160,7 +176,7 @@
       <div class="modal-body">
         <div class="field">
           <label>Application <span class="field-hint">(optionnel)</span></label>
-          <input type="text" [(ngModel)]="editForm.application" placeholder="ex. DashboardCore" />
+          <input type="text" [(ngModel)]="editForm.application" list="known-apps" placeholder="ex. Dashboard" autocomplete="off" />
         </div>
         <div class="field">
           <label>Description <span class="field-hint">(optionnel)</span></label>
@@ -194,6 +210,65 @@
         <button class="btn btn-danger" (click)="confirmDelete()" [disabled]="deleteLoading()">
           {{ deleteLoading() ? 'Suppression…' : 'Supprimer' }}
         </button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Permissions modal ─────────────────────────────────────────── -->
+@if (showPerms()) {
+  <div class="modal-backdrop" (click)="showPerms.set(false)">
+    <div class="modal modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Permissions — {{ permsRole()?.name }}</h3>
+        <button class="modal-close" (click)="showPerms.set(false)">✕</button>
+      </div>
+      <div class="modal-body">
+
+        @if (permsLoading()) {
+          <p class="loading">Chargement…</p>
+        } @else {
+          <!-- Assigned permissions -->
+          <div class="field">
+            <label>Permissions assignées</label>
+            <div class="perm-chips">
+              @for (perm of rolePermissions(); track perm.id) {
+                <span class="perm-chip">
+                  {{ perm.name }}
+                  <button class="chip-remove" (click)="removePermission(perm)" title="Retirer">✕</button>
+                </span>
+              } @empty {
+                <span class="empty-hint">Aucune permission assignée.</span>
+              }
+            </div>
+          </div>
+
+          <!-- Add a permission -->
+          @if (availablePermissions().length > 0) {
+            <div class="field perm-add-row">
+              <label>Ajouter une permission</label>
+              <div class="perm-add-controls">
+                <select [ngModel]="permToAdd()" (ngModelChange)="permToAdd.set($event)">
+                  <option [value]="null">— Sélectionner —</option>
+                  @for (perm of availablePermissions(); track perm.id) {
+                    <option [value]="perm.id">{{ perm.name }}{{ perm.description ? ' — ' + perm.description : '' }}</option>
+                  }
+                </select>
+                <button
+                  class="btn btn-primary btn-sm"
+                  [disabled]="!permToAdd() || permAddLoading()"
+                  (click)="assignPermission()"
+                >
+                  {{ permAddLoading() ? '…' : 'Assigner' }}
+                </button>
+              </div>
+            </div>
+          }
+        }
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" (click)="showPerms.set(false)">Fermer</button>
       </div>
     </div>
   </div>

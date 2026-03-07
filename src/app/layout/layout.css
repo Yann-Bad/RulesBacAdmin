@@ -37,22 +37,38 @@
 /* ── Nav ───────────────────────────────────────────────────────── */
 .nav {
   display: flex;
-  gap: 0.25rem;
+  align-items: center;
+  gap: 0.15rem;
   flex: 1;
+  overflow-x: auto;
 }
 
 .nav a {
-  padding: 0.4rem 0.875rem;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.75rem;
   border-radius: 6px;
   color: #94a3b8;
   text-decoration: none;
-  font-size: 0.875rem;
+  font-size: 0.8rem;
   font-weight: 500;
+  white-space: nowrap;
   transition: color 0.15s, background 0.15s;
 }
 
 .nav a:hover { color: #f1f5f9; background: #0f172a; }
 .nav a.active { color: #a5b4fc; background: rgba(99, 102, 241, 0.15); }
+
+.nav-icon { font-size: 0.85rem; line-height: 1; }
+
+.nav-sep {
+  width: 1px;
+  height: 18px;
+  background: #334155;
+  margin: 0 0.35rem;
+  flex-shrink: 0;
+}
 
 /* ── User area ─────────────────────────────────────────────────── */
 .user-area {

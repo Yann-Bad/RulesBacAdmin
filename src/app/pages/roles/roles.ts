@@ -3,8 +3,9 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { Subject, Subscription, debounceTime, distinctUntilChanged } from 'rxjs';
 import { RolesService } from '../../services/roles.service';
+import { PermissionsService } from '../../services/permissions.service';
 import { ToastService } from '../../services/toast.service';
-import type { RoleDto, CreateRoleDto, UpdateRoleDto } from '../../models/models';
+import type { RoleDto, CreateRoleDto, UpdateRoleDto, PermissionDto, AssignPermissionDto } from '../../models/models';
 
 @Component({
   selector: 'app-roles',
@@ -14,8 +15,9 @@ import type { RoleDto, CreateRoleDto, UpdateRoleDto } from '../../models/models'
   styleUrl: './roles.css',
 })
 export class RolesComponent implements OnInit, OnDestroy {
-  private readonly rolesService = inject(RolesService);
-  private readonly toast        = inject(ToastService);
+  private readonly rolesService       = inject(RolesService);
+  private readonly permissionsService = inject(PermissionsService);
+  private readonly toast              = inject(ToastService);
 
   roles         = signal<RoleDto[]>([]);
   loading       = signal(true);
@@ -70,7 +72,10 @@ export class RolesComponent implements OnInit, OnDestroy {
   }
 
   showCreate    = signal(false);
-  createForm: CreateRoleDto = { name: '' };
+  createForm: CreateRoleDto = { name: '', application: '' };
+
+  // Known application names used in datalist + validation
+  readonly knownApplications = ['RubacCore', 'Dashboard'];
   createError   = signal('');
   createLoading = signal(false);
 
@@ -82,6 +87,20 @@ export class RolesComponent implements OnInit, OnDestroy {
   editTarget  = signal<RoleDto | null>(null);
   editForm: UpdateRoleDto = {};
   editLoading = signal(false);
+
+  // ── Permissions panel ─────────────────────────────────────────────────
+  showPerms         = signal(false);
+  permsRole         = signal<RoleDto | null>(null);
+  rolePermissions   = signal<PermissionDto[]>([]);
+  allPermissions    = signal<PermissionDto[]>([]);
+  permsLoading      = signal(false);
+  permToAdd         = signal<number | null>(null);
+  permAddLoading    = signal(false);
+
+  availablePermissions = computed(() => {
+    const assigned = new Set(this.rolePermissions().map(p => p.id));
+    return this.allPermissions().filter(p => !assigned.has(p.id));
+  });
 
   ngOnInit(): void {
     this.searchSub = this.searchInput$.pipe(
@@ -132,7 +151,7 @@ export class RolesComponent implements OnInit, OnDestroy {
   }
 
   openCreate(): void {
-    this.createForm = { name: '' };
+    this.createForm = { name: '', application: '' };
     this.createError.set('');
     this.showCreate.set(true);
   }
@@ -140,6 +159,10 @@ export class RolesComponent implements OnInit, OnDestroy {
   submitCreate(): void {
     if (!this.createForm.name.trim()) {
       this.createError.set('Le nom du rôle est requis.');
+      return;
+    }
+    if (!this.createForm.application?.trim()) {
+      this.createError.set('L\'application est requise.');
       return;
     }
     this.createLoading.set(true);
@@ -198,6 +221,59 @@ export class RolesComponent implements OnInit, OnDestroy {
         this.toast.error('Erreur lors de la mise à jour du rôle.');
         this.editLoading.set(false);
       },
+    });
+  }
+
+  // ── Permission panel ───────────────────────────────────────────────
+  openPerms(role: RoleDto): void {
+    this.permsRole.set(role);
+    this.permToAdd.set(null);
+    this.showPerms.set(true);
+    this.permsLoading.set(true);
+    this.permissionsService.getForRole(role.id).subscribe({
+      next: perms => {
+        this.rolePermissions.set(perms);
+        this.permsLoading.set(false);
+      },
+      error: () => {
+        this.toast.error('Erreur lors du chargement des permissions.');
+        this.permsLoading.set(false);
+      },
+    });
+    this.permissionsService.list(role.application ?? undefined).subscribe({
+      next: all => this.allPermissions.set(all),
+    });
+  }
+
+  assignPermission(): void {
+    const role = this.permsRole();
+    const permId = this.permToAdd();
+    if (!role || !permId) return;
+    this.permAddLoading.set(true);
+    this.permissionsService.assignToRole(role.id, { permissionId: permId }).subscribe({
+      next: () => {
+        const perm = this.allPermissions().find(p => p.id === permId)!;
+        this.rolePermissions.update(list => [...list, perm]);
+        this.permToAdd.set(null);
+        this.permAddLoading.set(false);
+        this.toast.success(`Permission '${perm.name}' assignée.`);
+      },
+      error: (err) => {
+        this.toast.error(err?.error?.error ?? 'Erreur lors de l\'assignation.');
+        this.permAddLoading.set(false);
+      },
+    });
+  }
+
+  removePermission(perm: PermissionDto): void {
+    const role = this.permsRole();
+    if (!role) return;
+    this.permissionsService.removeFromRole(role.id, perm.id).subscribe({
+      next: () => {
+        this.rolePermissions.update(list => list.filter(p => p.id !== perm.id));
+        this.toast.success(`Permission '${perm.name}' retirée.`);
+      },
+      error: () => this.toast.error('Erreur lors de la suppression.'),
     });
   }
 }

@@ -76,6 +76,24 @@ export interface AssignRoleDto {
   roleName: string;
 }
 
+// ── Permissions ───────────────────────────────────────────────────────────
+export interface PermissionDto {
+  id:           number;
+  name:         string;
+  description?: string;
+  application:  string;
+}
+
+export interface CreatePermissionDto {
+  name:         string;
+  description?: string;
+  application:  string;
+}
+
+export interface AssignPermissionDto {
+  permissionId: number;
+}
+
 // ── Paginated response matching RubacCore's PagedResult<T> ────────────────
 export interface PagedResult<T> {
   items:      T[];
@@ -197,6 +215,13 @@ export interface UserCentreAssignmentDto {
   name?:                     string;
   subdivisionAdministrative: CodeSubdivisionCentre;
   isPrimary:                 boolean;
+}
+
+// ── User ↔ Application assignment ───────────────────────────────────────────
+
+export interface UserApplicationDto {
+  clientId:    string;
+  displayName?: string;
 }
 
 // ── Real-time presence ────────────────────────────────────────────────────

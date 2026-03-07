@@ -86,6 +86,7 @@
                   <button class="btn btn-sm btn-ghost" (click)="openEdit(user)" title="Modifier">✏</button>
                   <button class="btn btn-sm btn-ghost" (click)="openRoles(user)" title="Rôles">🛡</button>
                   <button class="btn btn-sm btn-ghost" (click)="openCentres(user)" title="Centres">🏢</button>
+                  <button class="btn btn-sm btn-ghost" (click)="openApps(user)" title="Applications">📱</button>
                   <button class="btn btn-sm btn-ghost" (click)="openResetPwd(user)" title="Réinitialiser le mot de passe">🔑</button>
                   <button class="btn btn-sm btn-danger" (click)="openDelete(user)" title="Supprimer définitivement">🗑</button>
                 </div>
@@ -269,11 +270,15 @@
         <button class="modal-close" (click)="showRoles.set(false)">✕</button>
       </div>
       <div class="modal-body">
+
         <p class="modal-label">Rôles actuels :</p>
         <div class="role-chips" style="margin-bottom:1.25rem">
           @for (role of roleTarget()?.roles ?? []; track role) {
             <span class="chip chip-removable" [class.chip-super]="role === 'SuperAdmin'">
-              {{ role }}
+              <span class="chip-role">{{ role }}</span>
+              @if (roleApplication(role)) {
+                <span class="chip-app">{{ roleApplication(role) }}</span>
+              }
               <button class="chip-remove" (click)="removeRole(role)" title="Supprimer">✕</button>
             </span>
           } @empty {
@@ -281,20 +286,49 @@
           }
         </div>
 
-        @if (availableRolesToAdd().length > 0) {
-          <p class="modal-label">Ajouter un rôle :</p>
-          <div class="role-add-row">
-            <select [ngModel]="roleToAdd()" (ngModelChange)="roleToAdd.set($event)">
-              <option value="">— Choisir —</option>
-              @for (r of availableRolesToAdd(); track r) {
-                <option [value]="r">{{ r }}</option>
-              }
-            </select>
-            <button class="btn btn-primary btn-sm" (click)="assignRole()" [disabled]="!roleToAdd() || roleLoading()">
-              Ajouter
-            </button>
-          </div>
+        <p class="modal-label">Ajouter un rôle :</p>
+
+        <!-- Step 1: pick application -->
+        <div class="field">
+          <label>1. Application</label>
+          <select
+            [ngModel]="roleAppFilter()"
+            (ngModelChange)="onRoleAppFilterChange($event)"
+          >
+            <option value="">— Choisir une application —</option>
+            @for (app of distinctApplications(); track app) {
+              <option [value]="app">{{ app }}</option>
+            }
+          </select>
+        </div>
+
+        <!-- Step 2: pick role (only shown once an application is selected) -->
+        @if (roleAppFilter()) {
+          @if (availableRolesToAdd().length > 0) {
+            <div class="role-add-row">
+              <div class="field" style="flex:1;margin-bottom:0">
+                <label>2. Rôle</label>
+                <select [ngModel]="roleToAdd()" (ngModelChange)="roleToAdd.set($event)">
+                  <option value="">— Choisir un rôle —</option>
+                  @for (r of availableRolesToAdd(); track r.name) {
+                    <option [value]="r.name">{{ r.name }}</option>
+                  }
+                </select>
+              </div>
+              <button
+                class="btn btn-primary btn-sm"
+                style="align-self:flex-end"
+                (click)="assignRole()"
+                [disabled]="!roleToAdd() || roleLoading()"
+              >
+                {{ roleLoading() ? '…' : 'Ajouter' }}
+              </button>
+            </div>
+          } @else {
+            <p class="empty-text">Tous les rôles de cette application sont déjà assignés.</p>
+          }
         }
+
       </div>
       <div class="modal-footer">
         <button class="btn btn-primary" (click)="showRoles.set(false)">Fermer</button>
@@ -356,6 +390,55 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-primary" (click)="showCentreModal.set(false)">Fermer</button>
+      </div>
+    </div>
+  </div>
+}
+
+<!-- ── Applications modal ─────────────────────────────────────────────────────────── -->
+@if (showAppModal()) {
+  <div class="modal-backdrop" (click)="showAppModal.set(false)">
+    <div class="modal modal-lg" (click)="$event.stopPropagation()">
+      <div class="modal-header">
+        <h3>Applications — {{ appTarget()?.userName }}</h3>
+        <button class="modal-close" (click)="showAppModal.set(false)">✕</button>
+      </div>
+      <div class="modal-body">
+
+        <p class="modal-label">Applications autorisées</p>
+        @if (userAppsLoading()) {
+          <div class="loading" style="font-size:.85rem;padding:.4rem 0">Chargement…</div>
+        } @else if (userApps().length === 0) {
+          <p class="empty-text">Aucune application attribuée.</p>
+        } @else {
+          <div class="app-chips">
+            @for (app of userApps(); track app.clientId) {
+              <span class="app-chip">
+                <span class="app-chip-name">{{ app.displayName ?? app.clientId }}</span>
+                <span class="app-chip-id">{{ app.clientId }}</span>
+                <button class="chip-remove" (click)="removeAppFromUser(app.clientId)" title="Retirer">✕</button>
+              </span>
+            }
+          </div>
+        }
+
+        @if (availableApps().length > 0) {
+          <p class="modal-label" style="margin-top:1.25rem">Attribuer une application</p>
+          <div class="role-add-row">
+            <select [ngModel]="addAppClientId()" (ngModelChange)="addAppClientId.set($event || null)">
+              <option [ngValue]="null">— Choisir —</option>
+              @for (app of availableApps(); track app.clientId) {
+                <option [value]="app.clientId">{{ app.displayName ?? app.clientId }}</option>
+              }
+            </select>
+            <button class="btn btn-primary btn-sm" [disabled]="!addAppClientId()" (click)="assignAppToUser()">
+              Attribuer
+            </button>
+          </div>
+        }
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" (click)="showAppModal.set(false)">Fermer</button>
       </div>
     </div>
   </div>
