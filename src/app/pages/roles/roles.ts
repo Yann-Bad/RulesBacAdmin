@@ -203,12 +203,20 @@ export class RolesComponent implements OnInit, OnDestroy {
   openEdit(role: RoleDto): void {
     this.editTarget.set(role);
     this.editForm = { description: role.description, application: role.application };
+    this.editError.set('');
     this.showEdit.set(true);
   }
+
+  editError = signal('');
 
   submitEdit(): void {
     const target = this.editTarget();
     if (!target) return;
+    if (!this.editForm.application?.trim()) {
+      this.editError.set('L\'application est requise.');
+      return;
+    }
+    this.editError.set('');
     this.editLoading.set(true);
     this.rolesService.update(target.name, this.editForm).subscribe({
       next: updated => {

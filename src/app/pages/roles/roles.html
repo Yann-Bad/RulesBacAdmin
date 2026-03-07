@@ -174,8 +174,11 @@
         <button class="modal-close" (click)="showEdit.set(false)">✕</button>
       </div>
       <div class="modal-body">
+        @if (editError()) {
+          <p class="alert-error">{{ editError() }}</p>
+        }
         <div class="field">
-          <label>Application <span class="field-hint">(optionnel)</span></label>
+          <label>Application <span class="field-required">*</span></label>
           <input type="text" [(ngModel)]="editForm.application" list="known-apps" placeholder="ex. Dashboard" autocomplete="off" />
         </div>
         <div class="field">
