@@ -73,6 +73,10 @@ export const routes: Routes = [
         path: 'centres',
         loadComponent: () => import('./pages/centres/centres').then(m => m.CentresComponent),
       },
+      {
+        path: 'ad-users',
+        loadComponent: () => import('./pages/ad-users/ad-users').then(m => m.AdUsersComponent),
+      },
     ],
   },
 

@@ -233,3 +233,60 @@ export interface UserSession {
   connectedAt:  string;  // ISO string
   lastSeenAt:   string;  // ISO string
 }
+
+// ── Active Directory write DTOs (maps to RubacCore/Dtos/LdapDtos.cs) ─────
+
+/** Result wrapper returned by every AD write endpoint. */
+export interface LdapWriteResult {
+  message: string;
+}
+
+/** Payload for POST /api/ad/users */
+export interface CreateAdUserDto {
+  samAccountName:           string;
+  displayName:              string;
+  givenName?:               string;
+  surname?:                 string;
+  email?:                   string;
+  password?:                string;
+  mustChangePasswordOnLogin: boolean;
+  description?:             string;
+}
+
+/** Payload for PUT /api/ad/users/:sam — all fields optional (null = unchanged) */
+export interface UpdateAdUserDto {
+  displayName?:             string | null;
+  givenName?:               string | null;
+  surname?:                 string | null;
+  email?:                   string | null;
+  description?:             string | null;
+  newPassword?:             string | null;
+  mustChangePasswordOnLogin?: boolean;
+}
+
+/** Payload for POST /api/ad/users/:sam/suspend */
+export interface SuspendAdUserDto {
+  reason: string;
+}
+
+/** Payload for POST/DELETE /api/ad/users/:sam/groups */
+export interface GroupMembershipDto {
+  groupDn: string;
+}
+
+/**
+ * Lightweight AD group representation returned by:
+ *   - GET /api/ad/users/groups/search?q=  (autocomplete)
+ *   - GET /api/ad/users/:sam/groups        (current memberships)
+ *
+ * `dn` is the authoritative key used when calling add/remove endpoints.
+ */
+export interface AdGroupDto {
+  /** Full Distinguished Name — e.g. "CN=GRP_RH,OU=Groupes,DC=cnss,DC=cd" */
+  dn:          string;
+  /** CN attribute — human-readable name shown in the dropdown. */
+  name:        string;
+  description?: string;
+  /** Direct member count (populated by search; 0 for memberOf queries). */
+  memberCount?: number;
+}

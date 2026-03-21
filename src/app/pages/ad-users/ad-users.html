@@ -1,0 +1,404 @@
+<div class="page">
+
+  <!-- ── Page header ─────────────────────────────────────────────────────── -->
+  <div class="page-header">
+    <div>
+      <h2>Annuaire Actif (AD)</h2>
+      <p class="subtitle">Créer, modifier, suspendre ou supprimer des comptes Active Directory</p>
+    </div>
+    <div class="header-actions">
+      <div class="ssl-badge">
+        <span class="ssl-icon">🔒</span>
+        <span>Mots de passe — LDAPS requis (SSL port 636)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Tabs ────────────────────────────────────────────────────────────── -->
+  <div class="tabs">
+    <button class="tab-btn" [class.active]="activeTab() === 'create'" (click)="activeTab.set('create')">
+      ➕ Créer un compte
+    </button>
+    <button class="tab-btn" [class.active]="activeTab() === 'manage'" (click)="activeTab.set('manage')">
+      ⚙️ Gérer un compte existant
+    </button>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       TAB 1 — CREATE
+  ════════════════════════════════════════════════════════════════════════ -->
+  @if (activeTab() === 'create') {
+    <div class="card">
+      <div class="card-header">
+        <h3>Nouveau compte AD</h3>
+        <p class="card-sub">Le compte sera activé uniquement si un mot de passe est fourni et que LDAPS est configuré.</p>
+      </div>
+
+      <form class="ad-form" (ngSubmit)="submitCreate()" #createNgForm="ngForm">
+        <div class="form-grid">
+
+          <!-- sAMAccountName -->
+          <div class="field">
+            <label for="sam">sAMAccountName <span class="req">*</span></label>
+            <input id="sam" type="text" [(ngModel)]="createForm.samAccountName"
+                   name="samAccountName" required maxlength="20"
+                   placeholder="ex: jdupont" autocomplete="off" />
+            <span class="hint">Identifiant Windows (max 20 car.), unique dans le domaine</span>
+          </div>
+
+          <!-- Display name -->
+          <div class="field">
+            <label for="displayName">Nom complet <span class="req">*</span></label>
+            <input id="displayName" type="text" [(ngModel)]="createForm.displayName"
+                   name="displayName" required placeholder="ex: Jean Dupont" />
+          </div>
+
+          <!-- Given name -->
+          <div class="field">
+            <label for="givenName">Prénom</label>
+            <input id="givenName" type="text" [(ngModel)]="createForm.givenName"
+                   name="givenName" placeholder="Jean" />
+          </div>
+
+          <!-- Surname -->
+          <div class="field">
+            <label for="surname">Nom</label>
+            <input id="surname" type="text" [(ngModel)]="createForm.surname"
+                   name="surname" placeholder="Dupont" />
+          </div>
+
+          <!-- Email -->
+          <div class="field">
+            <label for="email">Email professionnel</label>
+            <input id="email" type="email" [(ngModel)]="createForm.email"
+                   name="email" placeholder="jdupont@cnss.cd" />
+          </div>
+
+          <!-- Password -->
+          <div class="field">
+            <label for="password">Mot de passe initial</label>
+            <input id="password" type="password" [(ngModel)]="createForm.password"
+                   name="password" placeholder="Requiert LDAPS (port 636)" />
+            <span class="hint warning-hint">⚠️ Ignoré si Ldap:UseSsl = false dans appsettings</span>
+          </div>
+
+          <!-- Must change password -->
+          <div class="field field-checkbox">
+            <label class="checkbox-label">
+              <input type="checkbox" [(ngModel)]="createForm.mustChangePasswordOnLogin"
+                     name="mustChangePasswordOnLogin" />
+              Forcer le changement de mot de passe à la première connexion
+            </label>
+          </div>
+
+          <!-- Description -->
+          <div class="field field-full">
+            <label for="description">Description (optionnel)</label>
+            <input id="description" type="text" [(ngModel)]="createForm.description"
+                   name="description" placeholder="ex: Compte créé le 2026-03-20 par IT" />
+          </div>
+
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary" [disabled]="createLoading()">
+            @if (createLoading()) { <span class="spinner"></span> Création… }
+            @else { ➕ Créer le compte }
+          </button>
+          <button type="button" class="btn btn-ghost" (click)="createForm = emptyCreate()">
+            Réinitialiser
+          </button>
+        </div>
+      </form>
+    </div>
+  }
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       TAB 2 — MANAGE
+  ════════════════════════════════════════════════════════════════════════ -->
+  @if (activeTab() === 'manage') {
+    <div class="card">
+      <div class="card-header">
+        <h3>Sélectionner un compte</h3>
+        <p class="card-sub">Entrez le sAMAccountName du compte à gérer puis choisissez une action.</p>
+      </div>
+
+      <!-- SAM input -->
+      <div class="sam-search">
+        <input type="text" [(ngModel)]="samInput" placeholder="ex: jdupont"
+               (keydown.enter)="setManageTarget()" class="sam-input" />
+        <button class="btn btn-primary" (click)="setManageTarget()">Sélectionner</button>
+        @if (manageSam()) {
+          <button class="btn btn-ghost" (click)="clearTarget()">✕ Effacer</button>
+        }
+      </div>
+
+      <!-- Account badge + action panel -->
+      @if (manageSam()) {
+        <div class="target-banner">
+          <span class="target-avatar">{{ manageSam()[0].toUpperCase() }}</span>
+          <div>
+            <p class="target-sam">{{ manageSam() }}</p>
+            <p class="target-domain">{{ manageSam() }}&#64;cnss.cd</p>
+          </div>
+        </div>
+
+        <!-- Action buttons row -->
+        <div class="action-row">
+          <button class="action-btn action-edit"       (click)="openUpdate()">✏️ Modifier</button>
+          <button class="action-btn action-suspend"    (click)="openSuspend()">🔴 Suspendre</button>
+          <button class="action-btn action-reactivate" (click)="submitReactivate()"
+                  [disabled]="reactivateLoading()">
+            @if (reactivateLoading()) { <span class="spinner"></span> } @else { 🟢 }
+            Réactiver
+          </button>
+          <button class="action-btn action-group-add"  (click)="openGroupAdd()">➕ Ajouter groupe</button>
+          <button class="action-btn action-group-rem"  (click)="openGroupRem()">➖ Retirer groupe</button>
+          <button class="action-btn action-delete"     (click)="openDelete()">🗑️ Supprimer</button>
+        </div>
+
+        <!-- ── Update panel ───────────────────────────────────────────── -->
+        @if (showUpdate()) {
+          <div class="sub-panel">
+            <h4>✏️ Modifier les attributs de <em>{{ manageSam() }}</em></h4>
+            <p class="sub-panel-hint">Laissez un champ vide pour ne pas le modifier.</p>
+            <div class="form-grid">
+              <div class="field">
+                <label>Nom complet</label>
+                <input type="text" [(ngModel)]="updateForm.displayName" placeholder="Inchangé" />
+              </div>
+              <div class="field">
+                <label>Prénom</label>
+                <input type="text" [(ngModel)]="updateForm.givenName" placeholder="Inchangé" />
+              </div>
+              <div class="field">
+                <label>Nom</label>
+                <input type="text" [(ngModel)]="updateForm.surname" placeholder="Inchangé" />
+              </div>
+              <div class="field">
+                <label>Email</label>
+                <input type="email" [(ngModel)]="updateForm.email" placeholder="Inchangé" />
+              </div>
+              <div class="field">
+                <label>Description</label>
+                <input type="text" [(ngModel)]="updateForm.description" placeholder="Inchangée" />
+              </div>
+              <div class="field">
+                <label>Nouveau mot de passe</label>
+                <input type="password" [(ngModel)]="updateForm.newPassword"
+                       placeholder="Requiert LDAPS" />
+              </div>
+              @if (updateForm.newPassword) {
+                <div class="field field-checkbox">
+                  <label class="checkbox-label">
+                    <input type="checkbox" [(ngModel)]="updateForm.mustChangePasswordOnLogin" />
+                    Forcer changement de mot de passe
+                  </label>
+                </div>
+              }
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-primary" (click)="submitUpdate()" [disabled]="updateLoading()">
+                @if (updateLoading()) { <span class="spinner"></span> } Enregistrer
+              </button>
+              <button class="btn btn-ghost" (click)="showUpdate.set(false)">Annuler</button>
+            </div>
+          </div>
+        }
+
+        <!-- ── Suspend panel ──────────────────────────────────────────── -->
+        @if (showSuspend()) {
+          <div class="sub-panel sub-panel-warn">
+            <h4>🔴 Suspendre <em>{{ manageSam() }}</em></h4>
+            <p class="sub-panel-hint">
+              Le compte sera <strong>désactivé immédiatement</strong>.
+              L'utilisateur ne pourra plus s'authentifier.
+              Les adhésions aux groupes et les attributs sont conservés.
+            </p>
+            <div class="field">
+              <label>Raison de suspension <span class="req">*</span></label>
+              <input type="text" [(ngModel)]="suspendForm.reason"
+                     placeholder="ex: Départ volontaire — contrat terminé le 2026-03-20" />
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-danger" (click)="submitSuspend()" [disabled]="suspendLoading()">
+                @if (suspendLoading()) { <span class="spinner"></span> } Confirmer la suspension
+              </button>
+              <button class="btn btn-ghost" (click)="showSuspend.set(false)">Annuler</button>
+            </div>
+          </div>
+        }
+
+        <!-- ── Add to group panel ──────────────────────────────────────
+             User types a name fragment; debounced search returns matching
+             groups; clicking a result shows a chip with the full DN.
+             "Ajouter" button is disabled until a group chip is selected.
+        ─────────────────────────────────────────────────────────────── -->
+        @if (showGroupAdd()) {
+          <div class="sub-panel">
+            <h4>➕ Ajouter <em>{{ manageSam() }}</em> dans un groupe</h4>
+
+            <!-- Autocomplete search input -->
+            <div class="field">
+              <label>Rechercher le groupe <span class="req">*</span></label>
+              <div class="autocomplete-wrap">
+                <input type="text"
+                       [(ngModel)]="addSearchInput"
+                       (ngModelChange)="onAddSearchChange()"
+                       placeholder="Tapez ≥ 2 caractères (ex: GRP_RH)" />
+
+                <!-- Spinner visible while the HTTP search is in-flight -->
+                @if (addSearching()) {
+                  <span class="ac-spinner">⏳</span>
+                }
+
+                <!-- Dropdown — disappears once a group is selected -->
+                @if (addSuggestions().length > 0 && !selectedGroupAdd()) {
+                  <ul class="ac-list">
+                    @for (g of addSuggestions(); track g.dn) {
+                      <li class="ac-item" (click)="selectGroupAdd(g)">
+                        <span class="ac-name">{{ g.name }}</span>
+                        @if (g.description) {
+                          <span class="ac-desc">{{ g.description }}</span>
+                        }
+                        <!-- Member count gives HR users a quick sanity-check -->
+                        <span class="ac-count">{{ g.memberCount }} membre(s)</span>
+                      </li>
+                    }
+                  </ul>
+                }
+              </div>
+            </div>
+
+            <!-- Selection chip — shows full DN for transparency.
+                 Clicking ✕ clears the selection so the user can search again. -->
+            @if (selectedGroupAdd(); as grp) {
+              <div class="selected-group-chip">
+                <span class="chip-name">✅ {{ grp.name }}</span>
+                <span class="chip-dn" title="Distinguished Name complet">{{ grp.dn }}</span>
+                <button class="chip-clear" (click)="selectedGroupAdd.set(null); addSearchInput = ''"
+                        title="Changer le groupe">✕</button>
+              </div>
+            }
+
+            <div class="form-actions">
+              <!-- Disabled until a group is selected from the dropdown -->
+              <button class="btn btn-primary"
+                      [disabled]="!selectedGroupAdd() || addLoading()"
+                      (click)="submitAddGroup()">
+                @if (addLoading()) { <span class="spinner"></span> } Ajouter au groupe
+              </button>
+              <button class="btn btn-ghost" (click)="showGroupAdd.set(false)">Annuler</button>
+            </div>
+          </div>
+        }
+
+        <!-- ── Remove from group panel ────────────────────────────────────
+             Primary UX: click a chip from the user's current-groups list.
+             Fallback: text search autocomplete (same debounced pipeline).
+             "Retirer" button disabled until a group is selected.
+        ─────────────────────────────────────────────────────────────── -->
+        @if (showGroupRem()) {
+          <div class="sub-panel">
+            <h4>➖ Retirer <em>{{ manageSam() }}</em> d'un groupe</h4>
+
+            <!-- Current groups chip list ────────────────────────────────
+                 Loaded automatically when the panel opens.
+                 Each chip is clickable to pre-fill the remove operation. -->
+            <div class="current-groups-section">
+              <p class="section-label">Groupes actuels de l'utilisateur&nbsp;:</p>
+              @if (loadingUserGroups()) {
+                <span class="ac-spinner">⏳ Chargement des groupes…</span>
+              } @else if (userGroups().length === 0) {
+                <p class="hint">Aucun groupe trouvé pour cet utilisateur.</p>
+              } @else {
+                <div class="current-groups">
+                  @for (g of userGroups(); track g.dn) {
+                    <!-- Highlighted if it's the currently selected group -->
+                    <span class="group-chip"
+                          [class.group-chip-selected]="selectedGroupRem()?.dn === g.dn"
+                          (click)="quickSelectForRemove(g)"
+                          title="Cliquer pour sélectionner — {{ g.dn }}">
+                      {{ g.name }}
+                      @if (g.description) { <span class="chip-desc">· {{ g.description }}</span> }
+                    </span>
+                  }
+                </div>
+              }
+            </div>
+
+            <!-- Fallback search (for groups not shown or after scroll) -->
+            <div class="field mt-sm">
+              <label>Ou chercher un groupe par nom</label>
+              <div class="autocomplete-wrap">
+                <input type="text"
+                       [(ngModel)]="remSearchInput"
+                       (ngModelChange)="onRemSearchChange()"
+                       placeholder="Tapez ≥ 2 caractères" />
+                @if (remSearching()) {
+                  <span class="ac-spinner">⏳</span>
+                }
+                @if (remSuggestions().length > 0 && !selectedGroupRem()) {
+                  <ul class="ac-list">
+                    @for (g of remSuggestions(); track g.dn) {
+                      <li class="ac-item" (click)="selectGroupRem(g)">
+                        <span class="ac-name">{{ g.name }}</span>
+                        @if (g.description) {
+                          <span class="ac-desc">{{ g.description }}</span>
+                        }
+                      </li>
+                    }
+                  </ul>
+                }
+              </div>
+            </div>
+
+            <!-- Selection chip for the chosen group -->
+            @if (selectedGroupRem(); as grp) {
+              <div class="selected-group-chip selected-group-chip-danger">
+                <span class="chip-name">🔴 {{ grp.name }}</span>
+                <span class="chip-dn">{{ grp.dn }}</span>
+                <button class="chip-clear" (click)="selectedGroupRem.set(null); remSearchInput = ''"
+                        title="Changer le groupe">✕</button>
+              </div>
+            }
+
+            <div class="form-actions">
+              <button class="btn btn-danger"
+                      [disabled]="!selectedGroupRem() || removeLoading()"
+                      (click)="submitRemoveGroup()">
+                @if (removeLoading()) { <span class="spinner"></span> } Retirer du groupe
+              </button>
+              <button class="btn btn-ghost" (click)="showGroupRem.set(false)">Annuler</button>
+            </div>
+          </div>
+        }
+
+        <!-- ── Delete panel ───────────────────────────────────────────── -->
+        @if (showDelete()) {
+          <div class="sub-panel sub-panel-danger">
+            <h4>🗑️ Supprimer définitivement <em>{{ manageSam() }}</em></h4>
+            <div class="danger-box">
+              <p>⚠️ <strong>Cette action est irréversible.</strong> Le compte AD sera supprimé définitivement.</p>
+              <p>Le compte <strong>doit être suspendu au préalable</strong> — le serveur refusera la suppression si le compte est encore actif.</p>
+            </div>
+            <div class="field">
+              <label>Confirmez en saisissant le sAMAccountName exact&nbsp;: <code>{{ manageSam() }}</code></label>
+              <input type="text" [(ngModel)]="deleteConfirm"
+                     placeholder="Saisissez {{ manageSam() }} pour confirmer" />
+            </div>
+            <div class="form-actions">
+              <button class="btn btn-danger"
+                      [disabled]="deleteConfirm !== manageSam() || deleteLoading()"
+                      (click)="submitDelete()">
+                @if (deleteLoading()) { <span class="spinner"></span> } Supprimer définitivement
+              </button>
+              <button class="btn btn-ghost" (click)="showDelete.set(false)">Annuler</button>
+            </div>
+          </div>
+        }
+      }
+    </div>
+  }
+
+</div>
